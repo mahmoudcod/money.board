@@ -1,0 +1,288 @@
+.container {
+    display: flex;
+    background-color: #F0F0F7;
+    width: 100%;
+}
+
+.dashboard-nav {
+    background-color: #3F4A56;
+    width: 260px;
+    border-radius: 15px;
+    height: 922px
+}
+
+.dash-logo {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 20vh;
+    background-color: #3E4955;
+    border-radius: 15px;
+
+}
+
+.dash-logo img {
+
+    width: 130px;
+    height: 51px;
+}
+
+.icon {
+    color: #F0F0F7;
+    margin: 0 15px;
+    font-size: 17px;
+
+}
+
+.act {
+    color: #409FD7;
+    font-size: 17px;
+
+}
+
+.dash-link {
+    padding: 15px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #BCBCCB;
+    text-decoration: none;
+
+}
+
+.active {
+    border-right: 5px solid #409FD7;
+    background-color: #3E4955;
+
+}
+
+.dash-links a {
+    text-decoration: none;
+    color: #BCBCCB;
+}
+
+
+
+/* ########### post section ################# */
+
+/* header-title */
+.head {
+    width: 100%;
+    margin: 60px;
+}
+
+.head-title {
+    display: flex;
+    justify-content: space-between;
+    margin: 40px 10px;
+}
+
+.head .addButton {
+    width: fit-content;
+    height: fit-content;
+    padding: 5px 15px;
+    background-color: #409FD7;
+    color: #ffff;
+    font-size: 15px;
+    border: none;
+    border-radius: 15px;
+    transition: all 0.14s ease-in;
+    text-decoration: none;
+}
+
+.head .addButton:hover {
+    width: fit-content;
+    height: fit-content;
+    padding: 5px 15px;
+    background-color: #ffff;
+    color: #409FD7;
+    font-size: 15px;
+    border: none;
+    border-radius: 15px;
+}
+
+.head .title {
+    font-size: 26px;
+    font-weight: 700;
+    color: #465260;
+}
+
+/*######################### table ###########################  */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th:first-child {
+    background-color: #f5f6fa;
+    /* Updated color */
+    border-radius: 0px 15px 0 0;
+    /* Added border radius */
+}
+
+.table th:last-child {
+    border-radius: 15px 0px 0 0;
+}
+
+.table thead {
+    background-color: #F5F6FA;
+    border-radius: 15px 15px 0 0;
+    margin: 10px 0;
+}
+
+.table th {
+    color: #A3A6B4;
+    font-size: 13px;
+    font-weight: 400;
+    padding: 10px;
+    text-align: start;
+    border-bottom: 8px solid #F0F0F7;
+}
+
+.table td {
+    background-color: #ffff;
+    border-bottom: 2px solid #F0F0F7;
+    color: #4D4F5C;
+    font-size: 13px;
+    font-weight: 400;
+    padding: 20px 10px;
+}
+
+
+.table input[type="checkbox"] {
+    margin: 0;
+    padding: 0;
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.pagination .arrow {
+    width: 41.83px;
+    background-color: White;
+    padding: 10px;
+    margin: 5px;
+    border-radius: 18px;
+    border: none;
+    font-weight: 400;
+    font-size: 13px;
+    color: #4D4F5C;
+}
+
+.pagination .page-num {
+    width: 41.83px;
+    background-color: White;
+    padding: 10px;
+    font-weight: 400;
+    margin: 5px;
+    border-radius: 18px;
+    border: none;
+    font-size: 13px;
+    color: #4D4F5C;
+}
+
+.pagination .arrow:hover {
+    background-color: #409FD7;
+    color: #ffff;
+}
+
+.pagination .page-num:hover {
+
+    background-color: #409FD7;
+    color: #ffff;
+}
+
+.pagination .act-num {
+    background-color: #409FD7;
+    color: #ffff;
+
+}
+
+/*######################### addPost ###########################  */
+
+.drop-area {
+    border: 1px solid #E8E9EC;
+    border-radius: 4px;
+    width: 70%;
+    padding: 30px 20px;
+    text-align: center;
+    margin: 5px;
+}
+
+.drop-area p {
+    font-size: 13px;
+    font-weight: 400;
+    color: #4D4F5C;
+}
+
+label {
+    font-size: 13px;
+    font-weight: 400;
+    color: #4D4F5C;
+    margin: 5px;
+}
+
+.file-input {
+    display: none;
+}
+
+input {
+    border: 1px solid #E8E9EC;
+    padding: 10px;
+    margin: 5px;
+    border-radius: 4px;
+}
+
+.select-box {
+    border: 1px solid #E8E9EC;
+    color: #465260;
+    padding: 10px;
+    margin: 5px;
+    border-radius: 4px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    width: 70%;
+}
+
+.slug-andCat {
+    display: flex;
+}
+
+.content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 20px;
+}
+
+.ql-toolbar.ql-snow,
+.ql-container.ql-snow {
+    border: 1px solid #E8E9EC !important;
+    border-radius: 4px;
+}
+
+
+.ql-container {
+    height: 200px !important;
+}
+
+.sub-button {
+    position: relative;
+    right: 56.5%;
+    padding: 10px 14px;
+    border-radius: 15px;
+    background-color: #409FD7;
+    color: white;
+    border: none;
+    width: 120px;
+    margin: 10px 0;
+
+}
