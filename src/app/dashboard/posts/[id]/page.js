@@ -1,11 +1,13 @@
 // EditPostPage.js
 'use client'
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery, useMutation } from '@apollo/client'
 import gql from 'graphql-tag';
-import { FiPlus, FiMinusCircle } from "react-icons/fi";
+import { FiPlus, FiMinus } from "react-icons/fi";
 import dynamic from 'next/dynamic';
 import 'react-quill/dist/quill.snow.css';
+import { useAuth } from '@/app/auth';
 
 const QuillEditor = dynamic(() => import('react-quill'), { ssr: false });
 
@@ -32,17 +34,26 @@ const GET_POST = gql`
   }
 `;
 
+const GetTags = gql`
+  query getTags {
+    tags {
+      id
+      name
+    }
+  }
+`;
+
 const UPDATE_POST = gql`
   mutation updatePost(
     $id: ID!
-    $title: String
-    $category: ENUM_POST_CATEGORY
-    $subCategory: ENUM_POST_SUBCATEGORY
-    $body: String
-    $featureImage: ID
-    $slug: String
+    $title: String!
+    $category: ENUM_POST_CATEGORY!
+    $subCategory: ENUM_POST_SUBCATEGORY!
+    $body: String!
+    $featureImage: ID!
+    $slug: String!
     $tags: [ID]
-    $excerpt: String
+    $excerpt: String!
     $published: Boolean
   ) {
     updatePost(
@@ -69,12 +80,16 @@ const UPDATE_POST = gql`
 `;
 
 const EditPostPage = ({ params }) => {
-
+    const router = useRouter()
+    const { getToken } = useAuth()
+    const token = getToken()
     const id = params.id
-    console.log(id);
     const { loading, error, data } = useQuery(GET_POST, {
         variables: { id: id },
     });
+
+    const { loading: loadingTags, data: tagsData } = useQuery(GetTags);
+
 
     const [title, setTitle] = useState('');
     const [category, setCategory] = useState('');
@@ -86,7 +101,13 @@ const EditPostPage = ({ params }) => {
     const [published, setPublished] = useState(false);
     const [selectedTags, setSelectedTags] = useState([]);
 
-    const [updatePost] = useMutation(UPDATE_POST);
+    const [updatePost] = useMutation(UPDATE_POST, {
+        context: {
+            headers: {
+                authorization: token ? `Bearer ${token}` : '',
+            },
+        },
+    });
 
     useEffect(() => {
         if (!loading && data) {
@@ -98,8 +119,46 @@ const EditPostPage = ({ params }) => {
             setExcerpt(post.excerpt);
             setPublished(post.published);
             setSelectedTags(post.tags);
+            setImageUrl(`https://api.ektesad.com/${post.featureImage.url}`)
         }
     }, [loading, data]);
+
+    const quillModules = {
+        toolbar: [
+            [{ header: [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            ['link', 'image'],
+            [{ align: [] }],
+            [{ color: [] }],
+            ['code-block'],
+            ['clean'],
+        ],
+    };
+
+
+    const quillFormats = [
+        'header',
+        'bold',
+        'italic',
+        'underline',
+        'strike',
+        'blockquote',
+        'list',
+        'bullet',
+        'link',
+        'image',
+        'align',
+        'color',
+        'code-block',
+    ];
+
+    const handleEditorChange = (newContent) => {
+        setBody(newContent);
+    };
+
+
+
 
     const handleImageDrop = (e) => {
         e.preventDefault();
@@ -122,20 +181,31 @@ const EditPostPage = ({ params }) => {
         reader.readAsDataURL(file);
     };
 
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const formData = new FormData();
-            formData.append('files', featureImage);
+            let featureImageId = null;
 
-            const response = await fetch('https://api.ektesad.com/upload', {
-                method: 'POST',
-                body: formData,
-            });
+            // Check if there's a new image to upload
+            if (featureImage) {
+                const formData = new FormData();
+                formData.append('files', featureImage);
 
-            const res = await response.json();
-            const featureImageId = res[0].id;
+                const response = await fetch('https://api.ektesad.com/upload', {
+                    method: 'POST',
+                    headers: {
+                        authorization: `Bearer ${token}`,
+                    },
+                    body: formData,
+                });
+
+                const res = await response.json();
+                featureImageId = res[0].id;
+            } else if (imageUrl) {
+                // If there's no new image but there's an existing image URL, use its ID
+                // Extract the image ID from the URL
+                featureImageId = data.post.featureImage.id
+            }
 
             await updatePost({
                 variables: {
@@ -152,7 +222,7 @@ const EditPostPage = ({ params }) => {
                 },
             });
 
-            router.push(`/post/${id}`);
+            router.push(`/dashboard/posts`);
 
         } catch (error) {
             console.error(error);
@@ -167,7 +237,7 @@ const EditPostPage = ({ params }) => {
         <>
             <main className="head">
                 <div className="head-title">
-                    <h3 className="title">تعديل المقالة</h3>
+                    <h3 className="title">تعديل مقالة: {title}</h3>
                 </div>
                 <form className="content" onSubmit={handleSubmit}>
                     <div className="form-group">
@@ -178,7 +248,9 @@ const EditPostPage = ({ params }) => {
                             onDrop={handleImageDrop}
                         >
                             {imageUrl ? (
-                                <img src={imageUrl} alt="Feature" style={{ maxWidth: '100%', maxHeight: '200px' }} />
+                                <>
+                                    <img src={imageUrl} alt="Feature" style={{ maxWidth: '100%', maxHeight: '200px' }} />
+                                </>
                             ) : (
                                 <label htmlFor="file-input" style={{ cursor: 'pointer' }}>
                                     <input
@@ -199,6 +271,13 @@ const EditPostPage = ({ params }) => {
                                 className="file-input"
                             />
                         </div>
+
+                        {imageUrl ? (
+                            <button type="button" className="delete-image-button" onClick={() => {
+                                setFeatureImage(null);
+                                setImageUrl('');
+                            }}>حذف الصورة</button>
+                        ) : ('')}
                     </div>
                     <div className="form-group">
                         <label>اسم المقالة:</label>
@@ -266,23 +345,41 @@ const EditPostPage = ({ params }) => {
                     </div>
                     <div className="form-group">
                         <label>مقطف عن المقالة:</label>
-                        <input style={{ padding: "25px 10px" }} type="text" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} />
+                        <textarea style={{ padding: "25px 10px" }} type="text" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} />
                     </div>
                     <div className="form-group">
                         <label>محتوي المقالة:</label>
                         <QuillEditor
                             value={body}
-                            onChange={setBody}
+                            onChange={handleEditorChange}
+                            modules={quillModules}
+                            formats={quillFormats}
                         />
                     </div>
                     <div className="form-group">
                         <label>الكلمات الدليلية:</label>
+                        {loadingTags ? (
+                            null
+                        ) : (
+                            <select className='select-box ' onChange={(e) => {
+                                const selectedTagId = e.target.value;
+                                const selectedTag = tagsData.tags.find(tag => tag.id === selectedTagId);
+                                setSelectedTags(prevTags => [...prevTags, selectedTag]);
+                            }}>
+                                <option value="">اختر كلمة دليلية</option>
+                                {tagsData.tags.map((tag) => (
+                                    <option key={tag.id} value={tag.id}>
+                                        {tag.name}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
                         <div>
                             {selectedTags.map(tag => (
                                 <span key={tag.id} className="tag">
                                     {tag.name}
-                                    <button type="button" onClick={() => removeTag(tag.id)}>
-                                        <FiMinusCircle />
+                                    <button className='delete-tag-button' type="button" onClick={() => removeTag(tag.id)}>
+                                        <FiMinus />
                                     </button>
                                 </span>
                             ))}

@@ -52,7 +52,7 @@ export const AuthProvider = ({ children }) => {
     const logout = () => {
         setUser(null);
         Cookies.remove('jwt');
-        router.push('/login');
+        router.push('/');
     };
 
     const getToken = () => user;

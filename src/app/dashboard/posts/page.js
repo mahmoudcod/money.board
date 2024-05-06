@@ -2,10 +2,10 @@
 import React, { useState } from 'react';
 import { MdKeyboardArrowLeft } from "react-icons/md";
 import { MdKeyboardArrowRight } from "react-icons/md";
-
+import { useAuth } from '@/app/auth';
 import { MdOutlineEdit } from "react-icons/md";
 import { RiDeleteBin6Line } from "react-icons/ri";
-import { useQuery } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
 import Link from 'next/link';
 // Define your GraphQL query with pagination parameters
@@ -27,17 +27,36 @@ const GET_POSTS = gql`
   }
 `;
 
+const DELETE_POST = gql`
+  mutation DeletePost($id: ID!) {
+    deletePost(input: {
+      where: {
+        id: $id
+      }
+    }) {
+      post {
+        id
+      }
+    }
+  }
+`;
+
+
 export default function Post() {
     const [currentPage, setCurrentPage] = useState(1);
     const pageSize = 10;
+    const { getToken } = useAuth();
 
     const { loading, error, data } = useQuery(GET_POSTS, {
         variables: {
             start: (currentPage - 1) * pageSize,
             limitForPosts: pageSize,
-            limitForCount: 1000
+            limitForCount: 100000000
         },
     });
+
+
+    const [deletePostMutation] = useMutation(DELETE_POST);
 
     if (loading) return null;
     if (error) return <p>Error: {error.message}</p>;
@@ -68,7 +87,28 @@ export default function Post() {
             timeZone: 'UTC' // Adjust timeZone as per your requirement
         });
     };
-
+    const deletePost = async (postId) => {
+        const confirmDelete = window.confirm("Are you sure you want to delete this post?");
+        if (confirmDelete) {
+            const token = getToken(); // Get token using getToken
+            try {
+                await deletePostMutation({
+                    variables: {
+                        id: postId
+                    },
+                    context: {
+                        headers: {
+                            Authorization: token ? `Bearer ${token}` : ''
+                        }
+                    }
+                });
+                // If deletion successful, you might want to refetch the posts or update the UI
+                console.log("Post deleted successfully.");
+            } catch (error) {
+                console.error("Error deleting post:", error.message);
+            }
+        }
+    };
 
     // Generate page number buttons
     const pageNumbers = [];
@@ -100,7 +140,7 @@ export default function Post() {
         <>
             <main className="head">
                 <div className="head-title">
-                    <h3 className="title">المقالات</h3>
+                    <h3 className="title">المقالات:{totalCount}</h3>
                     <Link href="/dashboard/posts/new-post" className="addButton">اضافة مقالة جديدة</Link>
                 </div>
 
@@ -120,16 +160,18 @@ export default function Post() {
                         {posts.map(item => (
                             <tr key={item.id}>
                                 <td><input type='checkbox' /></td>
-                                <td>{item.title.slice(0, 40)}</td>
-                                <td>{item.slug.slice(0, 40)}</td>
+                                <td>{item.title}</td>
+                                <td>{item.slug}</td>
                                 <td>{item.category}</td>
                                 {!item.published ? <td>مسودة</td> : <td>منشور</td>}
                                 <td>{formatArabicDate(item.createdAt)}</td>
                                 <td>
                                     <Link href={`/dashboard/posts/${item.id}`}>
-                                        <MdOutlineEdit />
+                                        <MdOutlineEdit style={{ color: " #4D4F5C" }} />
                                     </Link>
-                                    <RiDeleteBin6Line style={{ margin: "0px 10px" }} /></td>
+
+                                    <RiDeleteBin6Line onClick={() => deletePost(item.id)} className='delete' style={{ margin: "0px 10px" }} />
+                                </td>
                             </tr>
                         ))}
                     </tbody>

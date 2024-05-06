@@ -239,6 +239,14 @@ input {
     border-radius: 4px;
 }
 
+textarea {
+
+    border: 1px solid #E8E9EC;
+    padding: 10px;
+    margin: 5px;
+    border-radius: 4px;
+}
+
 .select-box {
     border: 1px solid #E8E9EC;
     color: #465260;
@@ -285,4 +293,31 @@ input {
     width: 120px;
     margin: 10px 0;
 
+}
+
+.tag {
+    margin: 0 10px;
+    font-size: 13px;
+    font-weight: 400;
+    color: #465260;
+}
+
+.delete-tag-button {
+    background-color: white;
+    border: none;
+    color: red;
+    margin: 5px;
+}
+
+.delete:hover {
+    color: red;
+}
+
+/* ####################### edit-post ################ */
+.delete-image-button {
+    background-color: white;
+    border: none;
+    color: red;
+    display: flex;
+    margin: 5px;
 }

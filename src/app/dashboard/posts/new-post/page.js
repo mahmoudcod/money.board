@@ -1,9 +1,9 @@
 'use client'
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import gql from 'graphql-tag';
-import { FiPlus, FiMinusCircle } from "react-icons/fi"; // Import FiMinusCircle icon
+import { FiPlus, FiMinus } from "react-icons/fi"; // Import FiMinusCircle icon
 import { useAuth } from '@/app/auth';
 import dynamic from 'next/dynamic';
 import 'react-quill/dist/quill.snow.css';
@@ -92,7 +92,6 @@ const AddPost = () => {
 
     const { loading: loadingUsers, data: userData } = useQuery(GetUsers);
     const { loading: loadingTags, data: tagsData } = useQuery(GetTags);
-    const fileInputRef = useRef(null);
     const [title, setTitle] = useState('');
     const [category, setCategory] = useState('');
     const [body, setBody] = useState('');
@@ -329,7 +328,7 @@ const AddPost = () => {
                     </div>
                     <div className="form-group">
                         <label>مقطف عن المقالة:</label>
-                        <input style={{ padding: "25px 10px" }} type="text" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} />
+                        <textarea style={{ padding: "25px 10px" }} type="text" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} />
                     </div>
                     <div className="form-group">
                         <label>محتوي المقالة:</label>
@@ -367,7 +366,7 @@ const AddPost = () => {
                                         <li key={tag.id}>
                                             {tag.name}
                                             <button type="button" onClick={() => removeTag(tag.id)}>
-                                                <FiMinusCircle />
+                                                <FiMinus />
                                             </button>
                                         </li>
                                     ))}
