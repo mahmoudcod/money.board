@@ -16,7 +16,7 @@
     justify-content: center;
     align-items: center;
     width: 100%;
-    height: 20vh;
+    height: 30vh;
     background-color: #3E4955;
     border-radius: 15px;
 
@@ -68,7 +68,7 @@
 /* header-title */
 .head {
     width: 100%;
-    margin: 60px;
+    margin: 20px 60px;
 }
 
 .head-title {
@@ -309,6 +309,14 @@ textarea {
     margin: 5px;
 }
 
+.delete-button {
+    background-color: #F0F0F7;
+    border: none;
+    color: red;
+    margin: 5px;
+    font-size: 13px;
+}
+
 .delete:hover {
     color: red;
 }
@@ -320,4 +328,57 @@ textarea {
     color: red;
     display: flex;
     margin: 5px;
+}
+
+/* Create a separate CSS module file, e.g., errorStyles.module.css */
+
+.error-message {
+    position: fixed;
+    top: 20px;
+    right: -400px;
+    /* Initially hide the message off-screen to the right */
+    max-width: 300px;
+    padding: 10px 20px;
+    background-color: #ffcccc;
+    border: 1px solid #ff0000;
+    color: #ff0000;
+    font-weight: bold;
+    animation: slideIn 0.3s ease-out forwards, fadeOut 0.3s ease-out 3s forwards;
+}
+
+.success-message {
+    position: fixed;
+    top: 20px;
+    right: -400px;
+    /* Initially hide the message off-screen to the right */
+    max-width: 300px;
+    padding: 10px 20px;
+    background-color: #d1ffcc;
+    border: 1px solid green;
+    color: green;
+    font-weight: bold;
+    animation: slideIn 0.3s ease-out forwards, fadeOut 0.3s ease-out 3s forwards;
+}
+
+@keyframes slideIn {
+    to {
+        right: 20px;
+    }
+}
+
+@keyframes fadeOut {
+    to {
+        opacity: 0;
+        visibility: hidden;
+    }
+}
+
+
+/* search */
+
+.search {
+    width: 100%;
+    padding: 20px 5px;
+    margin: 0;
+    border-radius: 20px;
 }

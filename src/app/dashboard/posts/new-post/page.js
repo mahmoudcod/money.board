@@ -1,13 +1,12 @@
 'use client'
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import gql from 'graphql-tag';
-import { FiPlus, FiMinus } from "react-icons/fi"; // Import FiMinusCircle icon
+import { FiPlus, FiMinus } from 'react-icons/fi';
 import { useAuth } from '@/app/auth';
 import dynamic from 'next/dynamic';
 import 'react-quill/dist/quill.snow.css';
-
+import { useRouter } from 'next/navigation';
 
 const GetUsers = gql`
   query getUsers {
@@ -33,12 +32,13 @@ const ADD_POST = gql`
     $category: ENUM_POST_CATEGORY!
     $subCategory: ENUM_POST_SUBCATEGORY!
     $body: String!
-    $featureImage: ID! 
+    $featureImage: ID
     $slug: String!
     $tags: [ID]
     $user: ID
     $excerpt: String!
     $published: Boolean
+    $publishDate: DateTime!
   ) {
     createPost(
       input: {
@@ -53,6 +53,7 @@ const ADD_POST = gql`
           user: $user
           excerpt: $excerpt
           published: $published
+          publishDate: $publishDate
         }
       }
     ) {
@@ -63,7 +64,7 @@ const ADD_POST = gql`
         body
         featureImage {
           id
-          url 
+          url
           createdAt
         }
         slug
@@ -79,19 +80,21 @@ const ADD_POST = gql`
         published
         createdAt
         updatedAt
+        publishDate
       }
     }
   }
 `;
+
 const QuillEditor = dynamic(() => import('react-quill'), { ssr: false });
 
 const AddPost = () => {
-
+    const router = useRouter();
     const { getToken } = useAuth();
     const token = getToken();
 
-    const { loading: loadingUsers, data: userData } = useQuery(GetUsers);
-    const { loading: loadingTags, data: tagsData } = useQuery(GetTags);
+    const { loading: loadingUsers, data: userData, error: usersError } = useQuery(GetUsers);
+    const { loading: loadingTags, data: tagsData, error: tagsError } = useQuery(GetTags);
     const [title, setTitle] = useState('');
     const [category, setCategory] = useState('');
     const [body, setBody] = useState('');
@@ -102,12 +105,25 @@ const AddPost = () => {
     const [published, setPublished] = useState(false);
     const [selectedTags, setSelectedTags] = useState([]);
     const [selectedUser, setSelectedUser] = useState('');
+    const [publishDate, setPublishDate] = useState('');
+    const [addPostError, setAddPostError] = useState(null);
+    const [addPostSuccess, setAddPostSuccess] = useState(null);
 
     const [addPost] = useMutation(ADD_POST, {
         context: {
             headers: {
                 authorization: token ? `Bearer ${token}` : '',
             },
+        },
+        onError(error) {
+            setAddPostError(error.message);
+            setAddPostSuccess(null);
+        },
+        onCompleted() {
+            setAddPostSuccess('تم إضافة المقالة بنجاح!');
+            setTimeout(() => {
+                router.push('/dashboard/posts');
+            }, 3000);
         },
     });
 
@@ -136,41 +152,64 @@ const AddPost = () => {
         e.preventDefault();
         try {
             const formData = new FormData();
-            formData.append('files', featureImage);
+            if (featureImage) {
+                formData.append('files', featureImage);
 
-            const response = await fetch('https://api.ektesad.com/upload', {
-                method: 'POST',
-                headers: {
-                    authorization: `Bearer ${token}`,
-                },
-                body: formData,
-            });
+                const response = await fetch('https://api.ektesad.com/upload', {
+                    method: 'POST',
+                    headers: {
+                        authorization: `Bearer ${token}`,
+                    },
+                    body: formData,
+                });
 
-            const res = await response.json();
-            const id = res[0].id;
+                if (!response.ok) {
+                    throw new Error('Failed to upload image');
+                }
 
-            await addPost({
-                variables: {
-                    title,
-                    category,
-                    subCategory: "items",
-                    body,
-                    featureImage: id,
-                    slug,
-                    tags: selectedTags.map(tag => tag.id),
-                    user: selectedUser,
-                    excerpt,
-                    published,
-                },
-            });
+                const res = await response.json();
+                const id = res[0]?.id;
 
+                await addPost({
+                    variables: {
+                        title,
+                        category,
+                        subCategory: 'items',
+                        body,
+                        featureImage: id,
+                        slug,
+                        tags: selectedTags.map((tag) => tag.id),
+                        user: selectedUser,
+                        excerpt,
+                        published,
+                        publishDate,
+                    },
+                });
+            } else {
+                await addPost({
+                    variables: {
+                        title,
+                        category,
+                        subCategory: 'items',
+                        body,
+                        featureImage: null,
+                        slug,
+                        tags: selectedTags.map((tag) => tag.id),
+                        user: selectedUser,
+                        excerpt,
+                        published,
+                        publishDate,
+                    },
+                });
+            }
         } catch (error) {
-            console.error(error);
+            setAddPostError(error.message);
+            setAddPostSuccess(null);
         }
     };
 
     const removeTag = (tagId) => {
-        setSelectedTags(prevTags => prevTags.filter(tag => tag.id !== tagId));
+        setSelectedTags((prevTags) => prevTags.filter((tag) => tag.id !== tagId));
     };
 
     const quillModules = {
@@ -185,7 +224,6 @@ const AddPost = () => {
             ['clean'],
         ],
     };
-
 
     const quillFormats = [
         'header',
@@ -203,11 +241,18 @@ const AddPost = () => {
         'code-block',
     ];
 
-
     const handleEditorChange = (newContent) => {
         setBody(newContent);
     };
 
+    useEffect(() => {
+        if (addPostError) {
+            const timer = setTimeout(() => {
+                setAddPostError(null);
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [addPostError]);
 
     return (
         <>
@@ -234,7 +279,7 @@ const AddPost = () => {
                                         onChange={handleInputChange}
                                         accept="image/*"
                                     />
-                                    <FiPlus style={{ fontSize: "50px" }} />
+                                    <FiPlus style={{ fontSize: '50px' }} />
                                     <p>اسحب الملف واسقطة في هذه المساحة او في المتصفح لرفعة</p>
                                 </label>
                             )}
@@ -251,14 +296,18 @@ const AddPost = () => {
                         <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} />
                     </div>
                     <div className="form-group">
-                        <div className='slug-andCat'>
+                        <div className="slug-andCat">
                             <div className="form-group">
                                 <label>الslug:</label>
                                 <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} />
                             </div>
                             <div className="form-group">
                                 <label>القسم:</label>
-                                <select className='select-box' value={category} onChange={(e) => setCategory(e.target.value)}>
+                                <select
+                                    className="select-box"
+                                    value={category}
+                                    onChange={(e) => setCategory(e.target.value)}
+                                >
                                     <option value="">اختر القسم</option>
                                     <option value="news">أخبار</option>
                                     <option value="event">أحداث</option>
@@ -281,12 +330,11 @@ const AddPost = () => {
                                     <option value="entrepreneurship">ريادة الأعمال</option>
                                 </select>
                             </div>
-
                         </div>
                     </div>
                     <div className="form-group">
-                        <div className='slug-andCat'>
-                            <div className='form-group'>
+                        <div className="slug-andCat">
+                            <div className="form-group">
                                 <label>حالة المقالة:</label>
                                 <div>
                                     <input
@@ -309,13 +357,19 @@ const AddPost = () => {
                                     <label htmlFor="published">نشر</label>
                                 </div>
                             </div>
-                            <div className='form-group'>
+                            <div className="form-group">
                                 <label>الكاتب:</label>
                                 {loadingUsers ? (
                                     null
+                                ) : usersError ? (
+                                    <p>خطأ في جلب البيانات: {usersError.message}</p>
                                 ) : (
-                                    <select className='select-box' value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)}>
-                                        <option value=""> اختر كاتب</option>
+                                    <select
+                                        className="select-box"
+                                        value={selectedUser}
+                                        onChange={(e) => setSelectedUser(e.target.value)}
+                                    >
+                                        <option value="">اختر كاتب</option>
                                         {userData.users.map((user) => (
                                             <option key={user.id} value={user.id}>
                                                 {user.username}
@@ -328,7 +382,12 @@ const AddPost = () => {
                     </div>
                     <div className="form-group">
                         <label>مقطف عن المقالة:</label>
-                        <textarea style={{ padding: "25px 10px" }} type="text" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} />
+                        <textarea
+                            style={{ padding: '25px 10px' }}
+                            type="text"
+                            value={excerpt}
+                            onChange={(e) => setExcerpt(e.target.value)}
+                        />
                     </div>
                     <div className="form-group">
                         <label>محتوي المقالة:</label>
@@ -339,17 +398,21 @@ const AddPost = () => {
                             formats={quillFormats}
                         />
                     </div>
-
                     <div className="form-group">
                         <label>الكلمات الدليلية:</label>
                         {loadingTags ? (
                             null
+                        ) : tagsError ? (
+                            <p>خطأ في جلب البيانات: {tagsError.message}</p>
                         ) : (
-                            <select className='select-box ' onChange={(e) => {
-                                const selectedTagId = e.target.value;
-                                const selectedTag = tagsData.tags.find(tag => tag.id === selectedTagId);
-                                setSelectedTags(prevTags => [...prevTags, selectedTag]);
-                            }}>
+                            <select
+                                className="select-box"
+                                onChange={(e) => {
+                                    const selectedTagId = e.target.value;
+                                    const selectedTag = tagsData.tags.find((tag) => tag.id === selectedTagId);
+                                    setSelectedTags((prevTags) => [...prevTags, selectedTag]);
+                                }}
+                            >
                                 <option value="">اختر كلمة دليلية</option>
                                 {tagsData.tags.map((tag) => (
                                     <option key={tag.id} value={tag.id}>
@@ -360,22 +423,34 @@ const AddPost = () => {
                         )}
                         {selectedTags.length > 0 && (
                             <div>
-                                <p>الكلمات الدليلية المختارة:</p>
-                                <ul>
-                                    {selectedTags.map(tag => (
-                                        <li key={tag.id}>
-                                            {tag.name}
-                                            <button type="button" onClick={() => removeTag(tag.id)}>
-                                                <FiMinus />
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
+
+                                {selectedTags.map((tag) => (
+                                    <span className='tag' key={tag.id}>
+                                        {tag.name}
+                                        <button className='delete-tag-button' type="button" onClick={() => removeTag(tag.id)}>
+                                            <FiMinus />
+                                        </button>
+                                    </span>
+                                ))}
                             </div>
                         )}
                     </div>
-                    <button className='sub-button' type="submit">اضافة</button>
+                    {/* <div className="form-group">
+                        <label>تاريخ ووقت النشر:</label>
+                        <input
+                            type="datetime-local"
+                            value={publishDate}
+                            onChange={(e) => setPublishDate(e.target.value)}
+                        />
+                    </div> */}
+                    <button className="sub-button" type="submit">
+                        اضافة
+                    </button>
                 </form>
+                {addPostError && (
+                    <p className="error-message">حدث خطأ أثناء إضافة المقالة: {addPostError}</p>
+                )}
+                {addPostSuccess && <p className="success-message">{addPostSuccess}</p>}
             </main>
         </>
     );

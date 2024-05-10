@@ -1,10 +1,10 @@
-// EditPostPage.js
+//EditPostPage.js
 'use client'
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery, useMutation } from '@apollo/client'
+import { useQuery, useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
-import { FiPlus, FiMinus } from "react-icons/fi";
+import { FiPlus, FiMinus } from 'react-icons/fi';
 import dynamic from 'next/dynamic';
 import 'react-quill/dist/quill.snow.css';
 import { useAuth } from '@/app/auth';
@@ -50,7 +50,7 @@ const UPDATE_POST = gql`
     $category: ENUM_POST_CATEGORY!
     $subCategory: ENUM_POST_SUBCATEGORY!
     $body: String!
-    $featureImage: ID!
+    $featureImage: ID
     $slug: String!
     $tags: [ID]
     $excerpt: String!
@@ -80,16 +80,20 @@ const UPDATE_POST = gql`
 `;
 
 const EditPostPage = ({ params }) => {
-    const router = useRouter()
-    const { getToken } = useAuth()
-    const token = getToken()
-    const id = params.id
-    const { loading, error, data } = useQuery(GET_POST, {
+    const router = useRouter();
+    const { getToken } = useAuth();
+    const token = getToken();
+    const id = params.id;
+
+    const { loading, error: postError, data } = useQuery(GET_POST, {
         variables: { id: id },
+        onError: (error) => {
+            console.error('Error fetching post:', error);
+            setErrorMessage('حدث خطأ أثناء جلب بيانات المقالة.');
+        },
     });
 
     const { loading: loadingTags, data: tagsData } = useQuery(GetTags);
-
 
     const [title, setTitle] = useState('');
     const [category, setCategory] = useState('');
@@ -100,26 +104,44 @@ const EditPostPage = ({ params }) => {
     const [excerpt, setExcerpt] = useState('');
     const [published, setPublished] = useState(false);
     const [selectedTags, setSelectedTags] = useState([]);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
 
-    const [updatePost] = useMutation(UPDATE_POST, {
+    const [updatePost, { error: updateError }] = useMutation(UPDATE_POST, {
         context: {
             headers: {
                 authorization: token ? `Bearer ${token}` : '',
             },
+        },
+        onError: (error) => {
+            console.error('Error updating post:', error);
+            setErrorMessage('حدث خطأ أثناء تحديث المقالة.');
+        },
+        onCompleted: () => {
+            if (!updateError) {
+                setSuccessMessage('تم تحديث المقالة بنجاح.');
+                setTimeout(() => {
+                    if (!errorMessage) {
+                        router.push(`/dashboard/posts`);
+                    }
+                }, 2000);
+            }
         },
     });
 
     useEffect(() => {
         if (!loading && data) {
             const post = data.post;
-            setTitle(post.title);
-            setCategory(post.category);
-            setBody(post.body);
-            setSlug(post.slug);
-            setExcerpt(post.excerpt);
-            setPublished(post.published);
-            setSelectedTags(post.tags);
-            setImageUrl(`https://api.ektesad.com/${post.featureImage.url}`)
+            setTitle(post.title || '');
+            setCategory(post.category || '');
+            setBody(post.body || '');
+            setSlug(post.slug || '');
+            setExcerpt(post.excerpt || '');
+            setPublished(post.published || false);
+            setSelectedTags(post.tags || []);
+            if (post.featureImage) {
+                setImageUrl(`https://api.ektesad.com/${post.featureImage.url}`);
+            }
         }
     }, [loading, data]);
 
@@ -135,7 +157,6 @@ const EditPostPage = ({ params }) => {
             ['clean'],
         ],
     };
-
 
     const quillFormats = [
         'header',
@@ -156,9 +177,6 @@ const EditPostPage = ({ params }) => {
     const handleEditorChange = (newContent) => {
         setBody(newContent);
     };
-
-
-
 
     const handleImageDrop = (e) => {
         e.preventDefault();
@@ -204,7 +222,8 @@ const EditPostPage = ({ params }) => {
             } else if (imageUrl) {
                 // If there's no new image but there's an existing image URL, use its ID
                 // Extract the image ID from the URL
-                featureImageId = data.post.featureImage.id
+                const imageIdMatch = imageUrl.match(/\/(\d+)\/?$/);
+                featureImageId = imageIdMatch ? imageIdMatch[1] : null;
             }
 
             await updatePost({
@@ -212,30 +231,36 @@ const EditPostPage = ({ params }) => {
                     id,
                     title,
                     category,
-                    subCategory: "items",
+                    subCategory: 'items',
                     body,
                     featureImage: featureImageId,
                     slug,
-                    tags: selectedTags.map(tag => tag.id),
+                    tags: selectedTags.map((tag) => tag.id),
                     excerpt,
                     published,
                 },
             });
 
-            router.push(`/dashboard/posts`);
-
+            setSuccessMessage('تم تحديث المقالة بنجاح.');
+            setTimeout(() => {
+                if (!errorMessage) {
+                    router.push(`/dashboard/posts`);
+                }
+            }, 2000);
         } catch (error) {
             console.error(error);
+            setErrorMessage('حدث خطأ أثناء تحديث المقالة.');
         }
     };
 
     const removeTag = (tagId) => {
-        setSelectedTags(prevTags => prevTags.filter(tag => tag.id !== tagId));
+        setSelectedTags((prevTags) => prevTags.filter((tag) => tag.id !== tagId));
     };
-
     return (
         <>
             <main className="head">
+                {errorMessage && <div className="error-message">{errorMessage}</div>}
+                {successMessage && <div className="success-message">{successMessage}</div>}
                 <div className="head-title">
                     <h3 className="title">تعديل مقالة: {title}</h3>
                 </div>
@@ -260,7 +285,7 @@ const EditPostPage = ({ params }) => {
                                         onChange={handleInputChange}
                                         accept="image/*"
                                     />
-                                    <FiPlus style={{ fontSize: "50px" }} />
+                                    <FiPlus style={{ fontSize: '50px' }} />
                                     <p>اسحب الملف واسقطة في هذه المساحة او في المتصفح لرفعة</p>
                                 </label>
                             )}
@@ -273,25 +298,35 @@ const EditPostPage = ({ params }) => {
                         </div>
 
                         {imageUrl ? (
-                            <button type="button" className="delete-image-button" onClick={() => {
-                                setFeatureImage(null);
-                                setImageUrl('');
-                            }}>حذف الصورة</button>
-                        ) : ('')}
+                            <button
+                                type="button"
+                                className="delete-image-button"
+                                onClick={() => {
+                                    setFeatureImage(null);
+                                    setImageUrl('');
+                                }}
+                            >
+                                حذف الصورة
+                            </button>
+                        ) : null}
                     </div>
                     <div className="form-group">
                         <label>اسم المقالة:</label>
                         <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} />
                     </div>
                     <div className="form-group">
-                        <div className='slug-andCat'>
+                        <div className="slug-andCat">
                             <div className="form-group">
                                 <label>الslug:</label>
                                 <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} />
                             </div>
                             <div className="form-group">
                                 <label>القسم:</label>
-                                <select className='select-box' value={category} onChange={(e) => setCategory(e.target.value)}>
+                                <select
+                                    className="select-box"
+                                    value={category}
+                                    onChange={(e) => setCategory(e.target.value)}
+                                >
                                     <option value="">اختر القسم</option>
                                     <option value="news">أخبار</option>
                                     <option value="event">أحداث</option>
@@ -317,8 +352,8 @@ const EditPostPage = ({ params }) => {
                         </div>
                     </div>
                     <div className="form-group">
-                        <div className='slug-andCat'>
-                            <div className='form-group'>
+                        <div className="slug-andCat">
+                            <div className="form-group">
                                 <label>حالة المقالة:</label>
                                 <div>
                                     <input
@@ -345,7 +380,12 @@ const EditPostPage = ({ params }) => {
                     </div>
                     <div className="form-group">
                         <label>مقطف عن المقالة:</label>
-                        <textarea style={{ padding: "25px 10px" }} type="text" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} />
+                        <textarea
+                            style={{ padding: '25px 10px' }}
+                            type="text"
+                            value={excerpt}
+                            onChange={(e) => setExcerpt(e.target.value)}
+                        />
                     </div>
                     <div className="form-group">
                         <label>محتوي المقالة:</label>
@@ -358,14 +398,15 @@ const EditPostPage = ({ params }) => {
                     </div>
                     <div className="form-group">
                         <label>الكلمات الدليلية:</label>
-                        {loadingTags ? (
-                            null
-                        ) : (
-                            <select className='select-box ' onChange={(e) => {
-                                const selectedTagId = e.target.value;
-                                const selectedTag = tagsData.tags.find(tag => tag.id === selectedTagId);
-                                setSelectedTags(prevTags => [...prevTags, selectedTag]);
-                            }}>
+                        {loadingTags ? null : (
+                            <select
+                                className="select-box"
+                                onChange={(e) => {
+                                    const selectedTagId = e.target.value;
+                                    const selectedTag = tagsData.tags.find((tag) => tag.id === selectedTagId);
+                                    setSelectedTags((prevTags) => [...prevTags, selectedTag]);
+                                }}
+                            >
                                 <option value="">اختر كلمة دليلية</option>
                                 {tagsData.tags.map((tag) => (
                                     <option key={tag.id} value={tag.id}>
@@ -375,17 +416,23 @@ const EditPostPage = ({ params }) => {
                             </select>
                         )}
                         <div>
-                            {selectedTags.map(tag => (
+                            {selectedTags.map((tag) => (
                                 <span key={tag.id} className="tag">
                                     {tag.name}
-                                    <button className='delete-tag-button' type="button" onClick={() => removeTag(tag.id)}>
+                                    <button
+                                        className="delete-tag-button"
+                                        type="button"
+                                        onClick={() => removeTag(tag.id)}
+                                    >
                                         <FiMinus />
                                     </button>
                                 </span>
                             ))}
                         </div>
                     </div>
-                    <button className='sub-button' type="submit">حفظ التغييرات</button>
+                    <button className="sub-button" type="submit">
+                        حفظ التغييرات
+                    </button>
                 </form>
             </main>
         </>

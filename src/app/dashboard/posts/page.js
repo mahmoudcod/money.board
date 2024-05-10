@@ -1,22 +1,22 @@
 'use client'
-import React, { useState } from 'react';
-import { MdKeyboardArrowLeft } from "react-icons/md";
-import { MdKeyboardArrowRight } from "react-icons/md";
-import { useAuth } from '@/app/auth';
-import { MdOutlineEdit } from "react-icons/md";
+import React, { useState, useEffect } from 'react';
+import { MdKeyboardArrowLeft, MdKeyboardArrowRight, MdOutlineEdit, MdDelete } from "react-icons/md";
 import { RiDeleteBin6Line } from "react-icons/ri";
+import { IoSearchSharp } from "react-icons/io5";
+
+import { useAuth } from '@/app/auth';
 import { useQuery, useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
 import Link from 'next/link';
-// Define your GraphQL query with pagination parameters
+
 const GET_POSTS = gql`
-  query GetPosts($start: Int!, $limitForCount: Int!, $limitForPosts: Int!) {
-    postsConnection(start: $start, limit: $limitForCount) {
+  query GetPosts($start: Int!, $limitForCount: Int!, $limitForPosts: Int!, $searchTerm: String) {
+    postsConnection(start: $start, limit: $limitForCount, where: {title_contains: $searchTerm}) {
       aggregate {
         count
       }
     }
-    posts(start: $start, limit: $limitForPosts) {
+    posts(sort: "updatedAt:desc", start: $start, limit: $limitForPosts, where: {title_contains: $searchTerm}) {
       id
       title
       slug
@@ -41,22 +41,75 @@ const DELETE_POST = gql`
   }
 `;
 
-
 export default function Post() {
     const [currentPage, setCurrentPage] = useState(1);
+    const [selectedPosts, setSelectedPosts] = useState([]);
+    const [deleteSuccess, setDeleteSuccess] = useState(false); // Track delete success message
     const pageSize = 10;
     const { getToken } = useAuth();
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
 
-    const { loading, error, data } = useQuery(GET_POSTS, {
+    const { loading, error, data, refetch } = useQuery(GET_POSTS, {
         variables: {
             start: (currentPage - 1) * pageSize,
             limitForPosts: pageSize,
-            limitForCount: 100000000
+            limitForCount: 100000000,
+            searchTerm: searchQuery
         },
     });
 
-
     const [deletePostMutation] = useMutation(DELETE_POST);
+
+    useEffect(() => {
+        if (searchQuery) {
+            refetch();
+        }
+    }, [currentPage, searchQuery]);
+
+    const handleCheckboxChange = (postId) => {
+        if (selectedPosts.includes(postId)) {
+            setSelectedPosts(selectedPosts.filter(id => id !== postId));
+        } else {
+            setSelectedPosts([...selectedPosts, postId]);
+        }
+    };
+
+    const deleteSelectedPosts = async () => {
+        const confirmDelete = window.confirm("Are you sure you want to delete selected posts?");
+        if (confirmDelete) {
+            const token = getToken();
+            try {
+                await Promise.all(selectedPosts.map(postId => deletePostMutation({
+                    variables: {
+                        id: postId
+                    },
+                    context: {
+                        headers: {
+                            Authorization: token ? `Bearer ${token}` : ''
+                        }
+                    }
+                })));
+
+                setSelectedPosts([]); // Clear selected posts after deletion
+                setDeleteSuccess(true); // Show delete success message
+                refetch(); // Refetch posts after deletion
+            } catch (error) {
+                console.error("Error deleting selected posts:", error.message);
+            }
+        }
+    };
+
+    useEffect(() => {
+        // Hide delete success message after a delay
+        if (deleteSuccess) {
+            const timer = setTimeout(() => {
+                setDeleteSuccess(false);
+            }, 3000); // Show message for 3 seconds
+
+            return () => clearTimeout(timer);
+        }
+    }, [deleteSuccess]);
 
     if (loading) return null;
     if (error) return <p>Error: {error.message}</p>;
@@ -76,7 +129,7 @@ export default function Post() {
     const setPage = (page) => {
         setCurrentPage(page);
     };
-    // Format the date into Arabic using toLocaleString with appropriate options
+
     const formatArabicDate = (dateString) => {
         const date = new Date(dateString);
         return date.toLocaleString('ar', {
@@ -84,13 +137,14 @@ export default function Post() {
             month: 'long',
             day: 'numeric',
             hour: 'numeric',
-            timeZone: 'UTC' // Adjust timeZone as per your requirement
+            timeZone: 'UTC'
         });
     };
+
     const deletePost = async (postId) => {
         const confirmDelete = window.confirm("Are you sure you want to delete this post?");
         if (confirmDelete) {
-            const token = getToken(); // Get token using getToken
+            const token = getToken();
             try {
                 await deletePostMutation({
                     variables: {
@@ -102,15 +156,20 @@ export default function Post() {
                         }
                     }
                 });
-                // If deletion successful, you might want to refetch the posts or update the UI
-                console.log("Post deleted successfully.");
+                setDeleteSuccess(true); // Show delete success message
+                refetch(); // Refetch posts after deletion
             } catch (error) {
                 console.error("Error deleting post:", error.message);
             }
         }
     };
 
-    // Generate page number buttons
+    const handleSearch = (e) => {
+        if (e.key === 'Enter') {
+            setSearchQuery(searchTerm);
+        }
+    };
+
     const pageNumbers = [];
     const maxPagesToShow = 5;
     const middlePage = Math.ceil(maxPagesToShow / 2);
@@ -132,22 +191,51 @@ export default function Post() {
                 className={currentPage == i ? "act-num page-num" : "page-num "}
             >
                 {i}
-            </button>);
+            </button>
+        );
     }
-
 
     return (
         <>
             <main className="head">
+                <input
+                    type="text"
+                    className='search'
+                    placeholder='البحث'
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyPress={handleSearch}
+                />
                 <div className="head-title">
                     <h3 className="title">المقالات:{totalCount}</h3>
                     <Link href="/dashboard/posts/new-post" className="addButton">اضافة مقالة جديدة</Link>
                 </div>
 
+                {selectedPosts.length > 0 && (
+                    <button className='delete-button' onClick={deleteSelectedPosts}>
+                        <MdDelete />
+                        حذف جميع المختار
+                    </button>
+                )}
+
+                {deleteSuccess && <div className="success-message">تم الحذف بنجاح</div>}
+
                 <table className="table">
                     <thead>
                         <tr>
-                            <th><input type="checkbox" /></th>
+                            <th>
+                                <input
+                                    type="checkbox"
+                                    checked={selectedPosts.length === posts.length}
+                                    onChange={() => {
+                                        if (selectedPosts.length === posts.length) {
+                                            setSelectedPosts([]);
+                                        } else {
+                                            setSelectedPosts(posts.map(post => post.id));
+                                        }
+                                    }}
+                                />
+                            </th>
                             <th>اسم المقالة</th>
                             <th>Slug</th>
                             <th>القسم</th>
@@ -159,7 +247,13 @@ export default function Post() {
                     <tbody>
                         {posts.map(item => (
                             <tr key={item.id}>
-                                <td><input type='checkbox' /></td>
+                                <td>
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedPosts.includes(item.id)}
+                                        onChange={() => handleCheckboxChange(item.id)}
+                                    />
+                                </td>
                                 <td>{item.title}</td>
                                 <td>{item.slug}</td>
                                 <td>{item.category}</td>
@@ -169,7 +263,6 @@ export default function Post() {
                                     <Link href={`/dashboard/posts/${item.id}`}>
                                         <MdOutlineEdit style={{ color: " #4D4F5C" }} />
                                     </Link>
-
                                     <RiDeleteBin6Line onClick={() => deletePost(item.id)} className='delete' style={{ margin: "0px 10px" }} />
                                 </td>
                             </tr>
@@ -182,7 +275,7 @@ export default function Post() {
                     {pageNumbers}
                     <button className='arrow' onClick={nextPage} disabled={currentPage === totalPages}><MdKeyboardArrowLeft /></button>
                 </div>
-            </main>
+            </main >
         </>
     );
 }
