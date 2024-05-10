@@ -36,8 +36,8 @@ function makeClient(token) {
 }
 
 export function ApolloWrapper({ children }) {
-    const { getToken } = useAuth(); // Destructure getToken from useAuth()
-    const token = getToken(); // Call getToken to get the token
+    const { getToken } = useAuth();
+    const token = getToken();
     return (
         <ApolloNextAppProvider makeClient={() => makeClient(token)}>
             {children}
