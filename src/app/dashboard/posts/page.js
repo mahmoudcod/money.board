@@ -1,9 +1,8 @@
-'use client'
-import React, { useState, useEffect } from 'react';
-import { MdKeyboardArrowLeft, MdKeyboardArrowRight, MdOutlineEdit, MdDelete } from "react-icons/md";
-import { RiDeleteBin6Line } from "react-icons/ri";
-import { IoSearchSharp } from "react-icons/io5";
+'use client';
 
+import React, { useState, useEffect } from 'react';
+import { MdKeyboardArrowLeft, MdKeyboardArrowRight, MdOutlineEdit, MdDelete } from 'react-icons/md';
+import { RiDeleteBin6Line } from 'react-icons/ri';
 import { useAuth } from '@/app/auth';
 import { useQuery, useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
@@ -11,12 +10,12 @@ import Link from 'next/link';
 
 const GET_POSTS = gql`
   query GetPosts($start: Int!, $limitForCount: Int!, $limitForPosts: Int!, $searchTerm: String) {
-    postsConnection(start: $start, limit: $limitForCount, where: {title_contains: $searchTerm}) {
+    postsConnection(start: $start, limit: $limitForCount, where: { title_contains: $searchTerm }) {
       aggregate {
         count
       }
     }
-    posts(sort: "updatedAt:desc", start: $start, limit: $limitForPosts, where: {title_contains: $searchTerm}) {
+    posts(sort: "updatedAt:desc", start: $start, limit: $limitForPosts, where: { title_contains: $searchTerm }) {
       id
       title
       slug
@@ -29,11 +28,7 @@ const GET_POSTS = gql`
 
 const DELETE_POST = gql`
   mutation DeletePost($id: ID!) {
-    deletePost(input: {
-      where: {
-        id: $id
-      }
-    }) {
+    deletePost(input: { where: { id: $id } }) {
       post {
         id
       }
@@ -44,19 +39,27 @@ const DELETE_POST = gql`
 export default function Post() {
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedPosts, setSelectedPosts] = useState([]);
-    const [deleteSuccess, setDeleteSuccess] = useState(false); // Track delete success message
+    const [deleteSuccess, setDeleteSuccess] = useState(false);
     const pageSize = 10;
     const { getToken } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
-    const isSmallScreen = window.innerWidth < 768; // Example breakpoint for small screens
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const isSmallScreen = window.innerWidth < 768;
+            setSmallScreen(isSmallScreen);
+        }
+    }, []);
+
+    const [isSmallScreen, setSmallScreen] = useState(false);
 
     const { loading, error, data, refetch } = useQuery(GET_POSTS, {
         variables: {
             start: (currentPage - 1) * pageSize,
             limitForPosts: pageSize,
             limitForCount: 100000000,
-            searchTerm: searchQuery
+            searchTerm: searchQuery,
         },
     });
 
@@ -69,44 +72,43 @@ export default function Post() {
     }, [currentPage, searchQuery]);
 
     const handleCheckboxChange = (postId) => {
-        if (selectedPosts.includes(postId)) {
-            setSelectedPosts(selectedPosts.filter(id => id !== postId));
-        } else {
-            setSelectedPosts([...selectedPosts, postId]);
-        }
+        const updatedSelectedPosts = selectedPosts.includes(postId)
+            ? selectedPosts.filter((id) => id !== postId)
+            : [...selectedPosts, postId];
+        setSelectedPosts(updatedSelectedPosts);
     };
 
     const deleteSelectedPosts = async () => {
-        const confirmDelete = window.confirm("Are you sure you want to delete selected posts?");
-        if (confirmDelete) {
+        if (window && window.confirm('Are you sure you want to delete selected posts?')) {
             const token = getToken();
             try {
-                await Promise.all(selectedPosts.map(postId => deletePostMutation({
-                    variables: {
-                        id: postId
-                    },
-                    context: {
-                        headers: {
-                            Authorization: token ? `Bearer ${token}` : ''
-                        }
-                    }
-                })));
+                await Promise.all(
+                    selectedPosts.map((postId) =>
+                        deletePostMutation({
+                            variables: { id: postId },
+                            context: {
+                                headers: {
+                                    Authorization: token ? `Bearer ${token}` : '',
+                                },
+                            },
+                        })
+                    )
+                );
 
-                setSelectedPosts([]); // Clear selected posts after deletion
-                setDeleteSuccess(true); // Show delete success message
-                refetch(); // Refetch posts after deletion
+                setSelectedPosts([]);
+                setDeleteSuccess(true);
+                refetch();
             } catch (error) {
-                console.error("Error deleting selected posts:", error.message);
+                console.error('Error deleting selected posts:', error.message);
             }
         }
     };
 
     useEffect(() => {
-        // Hide delete success message after a delay
         if (deleteSuccess) {
             const timer = setTimeout(() => {
                 setDeleteSuccess(false);
-            }, 3000); // Show message for 3 seconds
+            }, 3000);
 
             return () => clearTimeout(timer);
         }
@@ -115,17 +117,12 @@ export default function Post() {
     if (loading) return null;
     if (error) return <p>Error: {error.message}</p>;
 
-    const posts = data.posts;
-    const totalCount = data.postsConnection.aggregate.count;
+    const posts = data?.posts || [];
+    const totalCount = data?.postsConnection?.aggregate?.count || 0;
     const totalPages = Math.ceil(totalCount / pageSize);
 
-    const nextPage = () => {
-        setCurrentPage(currentPage + 1);
-    };
-
-    const prevPage = () => {
-        setCurrentPage(currentPage - 1);
-    };
+    const nextPage = () => setCurrentPage((prevPage) => prevPage + 1);
+    const prevPage = () => setCurrentPage((prevPage) => prevPage - 1);
 
     const setPage = (page) => {
         setCurrentPage(page);
@@ -138,29 +135,26 @@ export default function Post() {
             month: 'long',
             day: 'numeric',
             hour: 'numeric',
-            timeZone: 'UTC'
+            timeZone: 'UTC',
         });
     };
 
     const deletePost = async (postId) => {
-        const confirmDelete = window.confirm("Are you sure you want to delete this post?");
-        if (confirmDelete) {
+        if (window && window.confirm('Are you sure you want to delete this post?')) {
             const token = getToken();
             try {
                 await deletePostMutation({
-                    variables: {
-                        id: postId
-                    },
+                    variables: { id: postId },
                     context: {
                         headers: {
-                            Authorization: token ? `Bearer ${token}` : ''
-                        }
-                    }
+                            Authorization: token ? `Bearer ${token}` : '',
+                        },
+                    },
                 });
-                setDeleteSuccess(true); // Show delete success message
-                refetch(); // Refetch posts after deletion
+                setDeleteSuccess(true);
+                refetch();
             } catch (error) {
-                console.error("Error deleting post:", error.message);
+                console.error('Error deleting post:', error.message);
             }
         }
     };
@@ -176,6 +170,7 @@ export default function Post() {
     const middlePage = Math.ceil(maxPagesToShow / 2);
     let startPage = currentPage <= middlePage ? 1 : currentPage - middlePage + 1;
     let endPage = startPage + maxPagesToShow - 1;
+
     if (endPage > totalPages) {
         endPage = totalPages;
         startPage = endPage - maxPagesToShow + 1;
@@ -184,12 +179,13 @@ export default function Post() {
         }
     }
 
+    const pageButtons = [];
     for (let i = startPage; i <= endPage; i++) {
-        pageNumbers.push(
+        pageButtons.push(
             <button
                 key={i}
                 onClick={() => setPage(i)}
-                className={currentPage == i ? "act-num page-num" : "page-num "}
+                className={currentPage === i ? 'act-num page-num' : 'page-num'}
             >
                 {i}
             </button>
@@ -201,19 +197,21 @@ export default function Post() {
             <main className="head">
                 <input
                     type="text"
-                    className='search'
-                    placeholder='البحث'
+                    className="search"
+                    placeholder="البحث"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onKeyPress={handleSearch}
                 />
                 <div className="head-title">
-                    <h3 className="title">المقالات:{totalCount}</h3>
-                    <Link href="/dashboard/posts/new-post" className="addButton">اضافة مقالة جديدة</Link>
+                    <h3 className="title">المقالات: {totalCount}</h3>
+                    <Link href="/dashboard/posts/new-post" className="addButton">
+                        اضافة مقالة جديدة
+                    </Link>
                 </div>
 
                 {selectedPosts.length > 0 && (
-                    <button className='delete-button' onClick={deleteSelectedPosts}>
+                    <button className="delete-button" onClick={deleteSelectedPosts}>
                         <MdDelete />
                         حذف جميع المختار
                     </button>
@@ -232,7 +230,7 @@ export default function Post() {
                                         if (selectedPosts.length === posts.length) {
                                             setSelectedPosts([]);
                                         } else {
-                                            setSelectedPosts(posts.map(post => post.id));
+                                            setSelectedPosts(posts.map((post) => post.id));
                                         }
                                     }}
                                 />
@@ -246,7 +244,7 @@ export default function Post() {
                         </tr>
                     </thead>
                     <tbody>
-                        {posts.map(item => (
+                        {posts.map((item) => (
                             <tr key={item.id}>
                                 <td>
                                     <input
@@ -262,9 +260,13 @@ export default function Post() {
                                 {!isSmallScreen && <td>{formatArabicDate(item.createdAt)}</td>}
                                 <td>
                                     <Link href={`/dashboard/posts/${item.id}`}>
-                                        <MdOutlineEdit style={{ color: " #4D4F5C" }} />
+                                        <MdOutlineEdit style={{ color: '#4D4F5C' }} />
                                     </Link>
-                                    <RiDeleteBin6Line onClick={() => deletePost(item.id)} className='delete' style={{ margin: "0px 10px" }} />
+                                    <RiDeleteBin6Line
+                                        onClick={() => deletePost(item.id)}
+                                        className="delete"
+                                        style={{ margin: '0px 10px' }}
+                                    />
                                 </td>
                             </tr>
                         ))}
@@ -272,11 +274,23 @@ export default function Post() {
                 </table>
 
                 <div className="pagination">
-                    <button className='arrow' onClick={prevPage} disabled={currentPage === 1}><MdKeyboardArrowRight /></button>
-                    {pageNumbers}
-                    <button className='arrow' onClick={nextPage} disabled={currentPage === totalPages}><MdKeyboardArrowLeft /></button>
+                    <button
+                        className="arrow"
+                        onClick={prevPage}
+                        disabled={currentPage === 1}
+                    >
+                        <MdKeyboardArrowRight />
+                    </button>
+                    {pageButtons}
+                    <button
+                        className="arrow"
+                        onClick={nextPage}
+                        disabled={currentPage === totalPages}
+                    >
+                        <MdKeyboardArrowLeft />
+                    </button>
                 </div>
-            </main >
+            </main>
         </>
     );
 }
