@@ -49,6 +49,7 @@ export default function Post() {
     const { getToken } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
+    const isSmallScreen = window.innerWidth < 768; // Example breakpoint for small screens
 
     const { loading, error, data, refetch } = useQuery(GET_POSTS, {
         variables: {
@@ -238,9 +239,9 @@ export default function Post() {
                             </th>
                             <th>اسم المقالة</th>
                             <th>Slug</th>
-                            <th>القسم</th>
+                            {!isSmallScreen && <th>القسم</th>}
                             <th>حالة المقالة</th>
-                            <th>تاريخ النشر</th>
+                            {!isSmallScreen && <th>تاريخ النشر</th>}
                             <th>الاعدادات</th>
                         </tr>
                     </thead>
@@ -256,9 +257,9 @@ export default function Post() {
                                 </td>
                                 <td>{item.title}</td>
                                 <td>{item.slug}</td>
-                                <td>{item.category}</td>
+                                {!isSmallScreen && <td>{item.category}</td>}
                                 {!item.published ? <td>مسودة</td> : <td>منشور</td>}
-                                <td>{formatArabicDate(item.createdAt)}</td>
+                                {!isSmallScreen && <td>{formatArabicDate(item.createdAt)}</td>}
                                 <td>
                                     <Link href={`/dashboard/posts/${item.id}`}>
                                         <MdOutlineEdit style={{ color: " #4D4F5C" }} />

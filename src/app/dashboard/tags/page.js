@@ -180,32 +180,33 @@ export default function Tags() {
 
                 {errorMessage && <div className="error-message">{errorMessage}</div>}
                 {successMessage && <div className="success-message">{successMessage}</div>}
-
-                <table className="table">
-                    <thead>
-                        <tr>
-                            <th> <input type="checkbox" checked={selectedTags.length === tags.length} onChange={selectAllTags} /></th>
-                            <th>اسم العلامة</th>
-                            <th>تاريخ النشر</th>
-                            <th>الإعدادات</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {tags.map(item => (
-                            <tr key={item.id}>
-                                <td><input type='checkbox' checked={selectedTags.includes(item.id)} onChange={() => toggleTagSelection(item.id)} /></td>
-                                <td>{item.name}</td>
-                                <td>{formatArabicDate(item.createdAt)}</td>
-                                <td>
-                                    <Link href={`/dashboard/tags/${item.id}`}>
-                                        <MdOutlineEdit style={{ color: "#4D4F5C" }} />
-                                    </Link>
-                                    <RiDeleteBin6Line onClick={() => handleDeleteTag(item.id)} className='delete' style={{ margin: "0px 10px" }} />
-                                </td>
+                <div className="table-container">
+                    <table className="table">
+                        <thead>
+                            <tr>
+                                <th> <input type="checkbox" checked={selectedTags.length === tags.length} onChange={selectAllTags} /></th>
+                                <th>اسم العلامة</th>
+                                <th>تاريخ النشر</th>
+                                <th>الإعدادات</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {tags.map(item => (
+                                <tr key={item.id}>
+                                    <td><input type='checkbox' checked={selectedTags.includes(item.id)} onChange={() => toggleTagSelection(item.id)} /></td>
+                                    <td>{item.name}</td>
+                                    <td>{formatArabicDate(item.createdAt)}</td>
+                                    <td>
+                                        <Link href={`/dashboard/tags/${item.id}`}>
+                                            <MdOutlineEdit style={{ color: "#4D4F5C" }} />
+                                        </Link>
+                                        <RiDeleteBin6Line onClick={() => handleDeleteTag(item.id)} className='delete' style={{ margin: "0px 10px" }} />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
 
                 <div className="pagination">
                     <button className='arrow' onClick={prevPage} disabled={currentPage === 1}><MdKeyboardArrowRight /></button>

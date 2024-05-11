@@ -11,7 +11,7 @@
 .dashboard-nav {
     width: 250px;
     height: 822px;
-    position: absolute;
+    position: fixed;
     right: -250px;
     transition: right 0.3s ease;
     background-color: #3F4A56;
@@ -105,6 +105,7 @@
     width: 100%;
     margin: 20px 60px;
 }
+
 
 .head-title {
     display: flex;
@@ -304,6 +305,28 @@ textarea {
     background-color: white;
     padding: 20px;
     border-radius: 20px;
+}
+
+@media screen and (max-width: 768px) {
+    .content {
+        padding: 20px 10px;
+        width: 500px;
+    }
+
+    .form-group {
+        width: 100%;
+    }
+}
+
+@media screen and (max-width: 568px) {
+    .content {
+        padding: 20px 10px;
+        width: 300px;
+    }
+
+    .form-group {
+        width: 100%;
+    }
 }
 
 .ql-toolbar.ql-snow,
