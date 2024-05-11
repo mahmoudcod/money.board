@@ -218,60 +218,61 @@ export default function Post() {
                 )}
 
                 {deleteSuccess && <div className="success-message">تم الحذف بنجاح</div>}
-
-                <table className="table">
-                    <thead>
-                        <tr>
-                            <th>
-                                <input
-                                    type="checkbox"
-                                    checked={selectedPosts.length === posts.length}
-                                    onChange={() => {
-                                        if (selectedPosts.length === posts.length) {
-                                            setSelectedPosts([]);
-                                        } else {
-                                            setSelectedPosts(posts.map((post) => post.id));
-                                        }
-                                    }}
-                                />
-                            </th>
-                            <th>اسم المقالة</th>
-                            <th>Slug</th>
-                            {!isSmallScreen && <th>القسم</th>}
-                            <th>حالة المقالة</th>
-                            {!isSmallScreen && <th>تاريخ النشر</th>}
-                            <th>الاعدادات</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {posts.map((item) => (
-                            <tr key={item.id}>
-                                <td>
+                <div className="table-container">
+                    <table className="table">
+                        <thead>
+                            <tr>
+                                <th>
                                     <input
                                         type="checkbox"
-                                        checked={selectedPosts.includes(item.id)}
-                                        onChange={() => handleCheckboxChange(item.id)}
+                                        checked={selectedPosts.length === posts.length}
+                                        onChange={() => {
+                                            if (selectedPosts.length === posts.length) {
+                                                setSelectedPosts([]);
+                                            } else {
+                                                setSelectedPosts(posts.map((post) => post.id));
+                                            }
+                                        }}
                                     />
-                                </td>
-                                <td>{item.title}</td>
-                                <td>{item.slug}</td>
-                                {!isSmallScreen && <td>{item.category}</td>}
-                                {!item.published ? <td>مسودة</td> : <td>منشور</td>}
-                                {!isSmallScreen && <td>{formatArabicDate(item.createdAt)}</td>}
-                                <td>
-                                    <Link href={`/dashboard/posts/${item.id}`}>
-                                        <MdOutlineEdit style={{ color: '#4D4F5C' }} />
-                                    </Link>
-                                    <RiDeleteBin6Line
-                                        onClick={() => deletePost(item.id)}
-                                        className="delete"
-                                        style={{ margin: '0px 10px' }}
-                                    />
-                                </td>
+                                </th>
+                                <th>اسم المقالة</th>
+                                <th>Slug</th>
+                                {!isSmallScreen && <th>القسم</th>}
+                                <th>حالة المقالة</th>
+                                {!isSmallScreen && <th>تاريخ النشر</th>}
+                                <th>الاعدادات</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {posts.map((item) => (
+                                <tr key={item.id}>
+                                    <td>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedPosts.includes(item.id)}
+                                            onChange={() => handleCheckboxChange(item.id)}
+                                        />
+                                    </td>
+                                    <td>{item.title}</td>
+                                    <td>{item.slug}</td>
+                                    {!isSmallScreen && <td>{item.category}</td>}
+                                    {!item.published ? <td>مسودة</td> : <td>منشور</td>}
+                                    {!isSmallScreen && <td>{formatArabicDate(item.createdAt)}</td>}
+                                    <td>
+                                        <Link href={`/dashboard/posts/${item.id}`}>
+                                            <MdOutlineEdit style={{ color: '#4D4F5C' }} />
+                                        </Link>
+                                        <RiDeleteBin6Line
+                                            onClick={() => deletePost(item.id)}
+                                            className="delete"
+                                            style={{ margin: '0px 10px' }}
+                                        />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
 
                 <div className="pagination">
                     <button

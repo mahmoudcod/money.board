@@ -149,6 +149,14 @@
     border-collapse: collapse;
 }
 
+@media screen and (max-width: 576px) {
+    .head {
+        max-width: 350px
+    }
+
+
+}
+
 .table th:first-child {
     background-color: #f5f6fa;
     /* Updated color */
