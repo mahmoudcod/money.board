@@ -215,7 +215,7 @@ export default function Figure() {
                                     />
                                 </th>
                                 <th>اسم الشخصية</th>
-                                <th>Slug</th>
+                                {!isSmallScreen && <th>Slug</th>}
                                 <th>الجنسية</th>
                                 {!isSmallScreen && <th>تاريخ النشر</th>}
                                 <th>الإعدادات</th>
@@ -232,7 +232,7 @@ export default function Figure() {
                                         />
                                     </td>
                                     <td>{item.name}</td>
-                                    <td>{item.slug}</td>
+                                    {!isSmallScreen && <td>{item.slug}</td>}
                                     <td>{item.nationality}</td>
                                     {!isSmallScreen && <td>{formatArabicDate(item.createdAt)}</td>}
                                     <td>
