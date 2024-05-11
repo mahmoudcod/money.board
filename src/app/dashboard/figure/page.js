@@ -44,6 +44,16 @@ export default function Figure() {
     const [selectedFigureId, setSelectedFigureId] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
     const [errorMessage, setErrorMessage] = useState(null);
+
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const isSmallScreen = window.innerWidth < 768;
+            setSmallScreen(isSmallScreen);
+        }
+    }, []);
+
+    const [isSmallScreen, setSmallScreen] = useState(false);
     const pageSize = 10;
     const { getToken } = useAuth();
 
@@ -187,53 +197,55 @@ export default function Figure() {
                         حذف جميع المختار
                     </button>
                 )}
-                <table className="table">
-                    <thead>
-                        <tr>
-                            <th>
-                                <input
-                                    type="checkbox"
-                                    checked={selectedFigures.length === figures.length}
-                                    onChange={() => {
-                                        if (selectedFigures.length === figures.length) {
-                                            setSelectedFigures([]);
-                                        } else {
-                                            setSelectedFigures(figures.map(figure => figure.id));
-                                        }
-                                    }}
-                                />
-                            </th>
-                            <th>اسم الشخصية</th>
-                            <th>Slug</th>
-                            <th>الجنسية</th>
-                            <th>تاريخ النشر</th>
-                            <th>الإعدادات</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {figures.map(item => (
-                            <tr key={item.id}>
-                                <td>
+                <div className="table-container">
+                    <table className="table">
+                        <thead>
+                            <tr>
+                                <th>
                                     <input
                                         type="checkbox"
-                                        checked={selectedFigures.includes(item.id)}
-                                        onChange={() => handleCheckboxChange(item.id)}
+                                        checked={selectedFigures.length === figures.length}
+                                        onChange={() => {
+                                            if (selectedFigures.length === figures.length) {
+                                                setSelectedFigures([]);
+                                            } else {
+                                                setSelectedFigures(figures.map(figure => figure.id));
+                                            }
+                                        }}
                                     />
-                                </td>
-                                <td>{item.name}</td>
-                                <td>{item.slug}</td>
-                                <td>{item.nationality}</td>
-                                <td>{formatArabicDate(item.createdAt)}</td>
-                                <td>
-                                    <Link href={`/dashboard/figure/${item.id}`}>
-                                        <MdOutlineEdit style={{ color: " #4D4F5C" }} />
-                                    </Link>
-                                    <RiDeleteBin6Line onClick={() => deleteFigure(item.id)} className='delete' style={{ margin: "0px 10px" }} />
-                                </td>
+                                </th>
+                                <th>اسم الشخصية</th>
+                                <th>Slug</th>
+                                <th>الجنسية</th>
+                                {!isSmallScreen && <th>تاريخ النشر</th>}
+                                <th>الإعدادات</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {figures.map(item => (
+                                <tr key={item.id}>
+                                    <td>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedFigures.includes(item.id)}
+                                            onChange={() => handleCheckboxChange(item.id)}
+                                        />
+                                    </td>
+                                    <td>{item.name}</td>
+                                    <td>{item.slug}</td>
+                                    <td>{item.nationality}</td>
+                                    {!isSmallScreen && <td>{formatArabicDate(item.createdAt)}</td>}
+                                    <td>
+                                        <Link href={`/dashboard/figure/${item.id}`}>
+                                            <MdOutlineEdit style={{ color: " #4D4F5C" }} />
+                                        </Link>
+                                        <RiDeleteBin6Line onClick={() => deleteFigure(item.id)} className='delete' style={{ margin: "0px 10px" }} />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
 
                 {successMessage && <p className="success-message">{successMessage}</p>}
                 {errorMessage && <p className="error-message">{errorMessage}</p>}

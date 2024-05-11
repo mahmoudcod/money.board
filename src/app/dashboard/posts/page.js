@@ -236,7 +236,7 @@ export default function Post() {
                                     />
                                 </th>
                                 <th>اسم المقالة</th>
-                                <th>Slug</th>
+                                {!isSmallScreen && <th>Slug</th>}
                                 {!isSmallScreen && <th>القسم</th>}
                                 <th>حالة المقالة</th>
                                 {!isSmallScreen && <th>تاريخ النشر</th>}
@@ -254,7 +254,7 @@ export default function Post() {
                                         />
                                     </td>
                                     <td>{item.title}</td>
-                                    <td>{item.slug}</td>
+                                    {!isSmallScreen && <td>{item.slug}</td>}
                                     {!isSmallScreen && <td>{item.category}</td>}
                                     {!item.published ? <td>مسودة</td> : <td>منشور</td>}
                                     {!isSmallScreen && <td>{formatArabicDate(item.createdAt)}</td>}
