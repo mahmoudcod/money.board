@@ -151,13 +151,19 @@
 }
 
 .filter-icon {
-    margin-left: 10px;
-    cursor: pointer;
+    padding: 5px;
+    margin: 5px;
+    border: none;
+    border-radius: 10px;
 }
 
 button.active-filter {
     background-color: #4D4F5C;
     color: white;
+    padding: 5px;
+    margin: 5px;
+    border: none;
+    border-radius: 10px;
 }
 
 /*######################### table ###########################  */

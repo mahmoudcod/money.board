@@ -242,9 +242,9 @@ export default function Post() {
                 </div>
 
                 <div className="filter-container">
-                    <button onClick={() => handleFilterChange(null)} className={filterStatus === null ? 'active-filter' : ''}>الكل</button>
-                    <button onClick={() => handleFilterChange(true)} className={filterStatus === true ? 'active-filter' : ''}>منشور</button>
-                    <button onClick={() => handleFilterChange(false)} className={filterStatus === false ? 'active-filter' : ''}>مسودة</button>
+                    <button onClick={() => handleFilterChange(null)} className={filterStatus === null ? 'active-filter' : 'filter-icon '}>الكل</button>
+                    <button onClick={() => handleFilterChange(true)} className={filterStatus === true ? 'active-filter' : 'filter-icon '}>منشور</button>
+                    <button onClick={() => handleFilterChange(false)} className={filterStatus === false ? 'active-filter' : 'filter-icon '}>مسودة</button>
                 </div>
 
                 {selectedPosts.length > 0 && (
