@@ -143,6 +143,23 @@
     color: #465260;
 }
 
+
+.filter-container {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.filter-icon {
+    margin-left: 10px;
+    cursor: pointer;
+}
+
+button.active-filter {
+    background-color: #4D4F5C;
+    color: white;
+}
+
 /*######################### table ###########################  */
 .table {
     width: 100%;

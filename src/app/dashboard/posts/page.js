@@ -1,14 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MdKeyboardArrowLeft, MdKeyboardArrowRight, MdOutlineEdit, MdDelete } from 'react-icons/md';
+import { MdKeyboardArrowLeft, MdKeyboardArrowRight, MdOutlineEdit, MdDelete, MdFilterList } from 'react-icons/md';
 import { RiDeleteBin6Line } from 'react-icons/ri';
 import { useAuth } from '@/app/auth';
 import { useQuery, useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
 import Link from 'next/link';
 
-const GET_POSTS = gql`
+
+
+const GET_POSTS_WITHOUT_FILTER = gql`
   query GetPosts($start: Int!, $limitForCount: Int!, $limitForPosts: Int!, $searchTerm: String) {
     postsConnection(start: $start, limit: $limitForCount, where: { title_contains: $searchTerm }) {
       aggregate {
@@ -25,6 +27,26 @@ const GET_POSTS = gql`
     }
   }
 `;
+
+const GET_POSTS_WITH_FILTER = gql`
+  query GetPosts($start: Int!, $limitForCount: Int!, $limitForPosts: Int!, $searchTerm: String, $published: Boolean) {
+    postsConnection(start: $start, limit: $limitForCount, where: { title_contains: $searchTerm, published: $published }) {
+      aggregate {
+        count
+      }
+    }
+    posts(sort: "updatedAt:desc", start: $start, limit: $limitForPosts, where: { title_contains: $searchTerm, published: $published }) {
+      id
+      title
+      slug
+      category
+      createdAt
+      published
+    }
+  }
+`;
+
+
 
 const DELETE_POST = gql`
   mutation DeletePost($id: ID!) {
@@ -44,6 +66,8 @@ export default function Post() {
     const { getToken } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
+    const [filterStatus, setFilterStatus] = useState(null);  // Add a state for the filter status
+    const [isSmallScreen, setSmallScreen] = useState(false);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -51,25 +75,27 @@ export default function Post() {
             setSmallScreen(isSmallScreen);
         }
     }, []);
-
-    const [isSmallScreen, setSmallScreen] = useState(false);
-
-    const { loading, error, data, refetch } = useQuery(GET_POSTS, {
+    // Use the appropriate query based on whether filterStatus is null
+    const { loading, error, data, refetch } = useQuery(
+        filterStatus === null ? GET_POSTS_WITHOUT_FILTER : GET_POSTS_WITH_FILTER, {
         variables: {
             start: (currentPage - 1) * pageSize,
             limitForPosts: pageSize,
             limitForCount: 100000000,
             searchTerm: searchQuery,
+            ...(filterStatus !== null && { published: filterStatus })
         },
     });
+
+
 
     const [deletePostMutation] = useMutation(DELETE_POST);
 
     useEffect(() => {
-        if (searchQuery) {
+        if (searchQuery || filterStatus !== null) {
             refetch();
         }
-    }, [currentPage, searchQuery]);
+    }, [currentPage, searchQuery, filterStatus]);
 
     const handleCheckboxChange = (postId) => {
         const updatedSelectedPosts = selectedPosts.includes(postId)
@@ -165,6 +191,11 @@ export default function Post() {
         }
     };
 
+    const handleFilterChange = (status) => {
+        setFilterStatus(status);
+        setCurrentPage(1);  // Reset to the first page when changing the filter
+    };
+
     const pageNumbers = [];
     const maxPagesToShow = 5;
     const middlePage = Math.ceil(maxPagesToShow / 2);
@@ -208,6 +239,12 @@ export default function Post() {
                     <Link href="/dashboard/posts/new-post" className="addButton">
                         اضافة مقالة جديدة
                     </Link>
+                </div>
+
+                <div className="filter-container">
+                    <button onClick={() => handleFilterChange(null)} className={filterStatus === null ? 'active-filter' : ''}>الكل</button>
+                    <button onClick={() => handleFilterChange(true)} className={filterStatus === true ? 'active-filter' : ''}>منشور</button>
+                    <button onClick={() => handleFilterChange(false)} className={filterStatus === false ? 'active-filter' : ''}>مسودة</button>
                 </div>
 
                 {selectedPosts.length > 0 && (

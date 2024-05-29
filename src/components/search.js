@@ -31,7 +31,7 @@ const SearchPosts = () => {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search for posts..."
+                placeholder="  ..."
             />
             <button onClick={handleSearch}>Search</button>
 
