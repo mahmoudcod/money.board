@@ -1,11 +1,14 @@
-'use client'
+"use client"
 import React, { useState } from 'react';
+import { Modal, Button, Form } from 'react-bootstrap'; // You can use any UI library
+import { useQuery, useMutation } from '@apollo/client';
 import { MdKeyboardArrowLeft, MdKeyboardArrowRight } from "react-icons/md";
 import { RiDeleteBin6Line } from "react-icons/ri";
-import { useQuery, useMutation } from '@apollo/client';
+import 'bootstrap/dist/css/bootstrap.min.css';
+
+import emailjs from 'emailjs-com';
 import gql from 'graphql-tag';
 
-// Define your GraphQL query for the contact page
 const GET_CONTACT_QUERIES = gql`
   query GetContactQueries($start: Int!, $limitForCount: Int!, $limitForQueries: Int!) {
     contactsConnection(start: $start, limit: $limitForCount) {
@@ -39,6 +42,9 @@ const DELETE_QUERY = gql`
 
 export default function ContactQueries() {
     const [currentPage, setCurrentPage] = useState(1);
+    const [showModal, setShowModal] = useState(false);
+    const [selectedQuery, setSelectedQuery] = useState(null);
+    const [emailContent, setEmailContent] = useState('');
     const pageSize = 10;
 
     const { loading, error, data } = useQuery(GET_CONTACT_QUERIES, {
@@ -50,6 +56,29 @@ export default function ContactQueries() {
     });
 
     const [deleteQueryMutation] = useMutation(DELETE_QUERY);
+
+    const handleReply = (query) => {
+        setSelectedQuery(query);
+        setEmailContent(`Hello ${query.name},\n\n`); // Pre-fill with your content
+        setShowModal(true);
+    };
+
+    const handleSendEmail = () => {
+        const templateParams = {
+            to_email: selectedQuery.email,
+            from_name: 'Your Site Name',
+            message: emailContent,
+            reply_to: 'your-email@example.com',
+        };
+
+        emailjs.send('your_service_id', 'your_template_id', templateParams, 'your_user_id')
+            .then((response) => {
+                console.log('Email sent successfully:', response.status, response.text);
+                setShowModal(false);
+            }, (error) => {
+                console.error('Failed to send email:', error);
+            });
+    };
 
     if (loading) return null;
     if (error) return <p>Error: {error.message}</p>;
@@ -115,7 +144,7 @@ export default function ContactQueries() {
             <button
                 key={i}
                 onClick={() => setPage(i)}
-                className={currentPage == i ? "act-num page-num" : "page-num "}
+                className={currentPage === i ? "act-num page-num" : "page-num "}
             >
                 {i}
             </button>);
@@ -148,6 +177,7 @@ export default function ContactQueries() {
                                 <td>{query.message}</td>
                                 <td>{formatArabicDate(query.createdAt)}</td>
                                 <td>
+                                    <button onClick={() => handleReply(query)}>Reply</button>
                                     <RiDeleteBin6Line onClick={() => deleteQuery(query.id)} className='delete' style={{ margin: "0px 10px" }} />
                                 </td>
                             </tr>
@@ -161,6 +191,29 @@ export default function ContactQueries() {
                     <button className='arrow' onClick={nextPage} disabled={currentPage === totalPages}><MdKeyboardArrowLeft /></button>
                 </div>
             </main>
+
+            <Modal show={showModal} onHide={() => setShowModal(false)}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Reply to {selectedQuery?.name}</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <Form>
+                        <Form.Group>
+                            <Form.Label>Email Content</Form.Label>
+                            <Form.Control
+                                as="textarea"
+                                rows={5}
+                                value={emailContent}
+                                onChange={(e) => setEmailContent(e.target.value)}
+                            />
+                        </Form.Group>
+                    </Form>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
+                    <Button variant="primary" onClick={handleSendEmail}>Send Email</Button>
+                </Modal.Footer>
+            </Modal>
         </>
     );
 }

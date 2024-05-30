@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from 'next/navigation';
 import { FaChartSimple } from "react-icons/fa6";
 import { RiFolderImageLine } from "react-icons/ri";
+import { FaUsers } from "react-icons/fa";
 import { MdOutlinePolicy } from "react-icons/md";
 import { RxAvatar } from "react-icons/rx";
 import { BsTags } from "react-icons/bs";
@@ -46,6 +47,9 @@ export default function Nave() {
                     </div>
                     <div className={pathname === '/dashboard/tags' ? 'dash-link active' : 'dash-link'}>
                         <Link href={'/dashboard/tags'} ><BsTags className={pathname === '/dashboard/tags' ? 'icon act' : 'icon'} /> الكلمات الدليلية </Link>
+                    </div>
+                    <div className={pathname === '/dashboard/users' ? 'dash-link active' : 'dash-link'}>
+                        <Link href={'/dashboard/users'} ><FaUsers className={pathname === '/dashboard/users' ? 'icon act' : 'icon'} />   المستخدمين  </Link>
                     </div>
                     <div className={pathname === '/dashboard/contact' ? 'dash-link active' : 'dash-link'}>
                         <Link href={'/dashboard/contact'} ><LuMessagesSquare className={pathname === '/dashboard/contact' ? 'icon act' : 'icon'} /> رسائل تواصل معنا  </Link>
