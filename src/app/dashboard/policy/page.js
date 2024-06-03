@@ -4,10 +4,12 @@ import { useRouter } from 'next/navigation';
 import { useQuery, useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
 import dynamic from 'next/dynamic';
-import 'react-quill/dist/quill.snow.css';
 import { useAuth } from '@/app/auth';
+import MarkdownIt from 'markdown-it';
+import MdEditor from 'react-markdown-editor-lite';
+import 'react-markdown-editor-lite/lib/index.css';
 
-const QuillEditor = dynamic(() => import('react-quill'), { ssr: false });
+const mdParser = new MarkdownIt();
 
 const GET_DATA = gql`
   query getData($id: ID!) {
@@ -120,35 +122,6 @@ const EditDataPage = ({ params }) => {
         }
     };
 
-    const quillModules = {
-        toolbar: [
-            [{ header: [1, 2, 3, false] }],
-            ['bold', 'italic', 'underline', 'strike', 'blockquote'],
-            [{ list: 'ordered' }, { list: 'bullet' }],
-            ['link', 'image'],
-            [{ align: [] }],
-            [{ color: [] }],
-            ['code-block'],
-            ['clean'],
-        ],
-    };
-
-    const quillFormats = [
-        'header',
-        'bold',
-        'italic',
-        'underline',
-        'strike',
-        'blockquote',
-        'list',
-        'bullet',
-        'link',
-        'image',
-        'align',
-        'color',
-        'code-block',
-    ];
-
     return (
         <>
             <main className="head">
@@ -160,29 +133,29 @@ const EditDataPage = ({ params }) => {
                 <form className="content" onSubmit={handleSubmit}>
                     <div className="form-group" style={{ width: '100%' }}>
                         <label>الاستخدام:</label>
-                        <QuillEditor
+                        <MdEditor
                             value={usage}
-                            onChange={setUsage}
-                            modules={quillModules}
-                            formats={quillFormats}
+                            style={{ height: '300px' }}
+                            renderHTML={(text) => mdParser.render(text)}
+                            onChange={({ text }) => setUsage(text)}
                         />
                     </div>
                     <div className="form-group" style={{ width: '100%' }}>
                         <label>الخصوصية:</label>
-                        <QuillEditor
+                        <MdEditor
                             value={privacy}
-                            onChange={setPrivacy}
-                            modules={quillModules}
-                            formats={quillFormats}
+                            style={{ height: '300px' }}
+                            renderHTML={(text) => mdParser.render(text)}
+                            onChange={({ text }) => setPrivacy(text)}
                         />
                     </div>
                     <div className="form-group" style={{ width: '100%' }}>
                         <label>الميثاق الإعلامي:</label>
-                        <QuillEditor
+                        <MdEditor
                             value={mediaCh}
-                            onChange={setMediaCh}
-                            modules={quillModules}
-                            formats={quillFormats}
+                            style={{ height: '300px' }}
+                            renderHTML={(text) => mdParser.render(text)}
+                            onChange={({ text }) => setMediaCh(text)}
                         />
                     </div>
                     <div className="form-group" style={{ width: '100%' }}>

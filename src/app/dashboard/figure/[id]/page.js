@@ -3,12 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
-import { FiPlus, FiMinus } from "react-icons/fi";
-import dynamic from 'next/dynamic';
-import 'react-quill/dist/quill.snow.css';
+import { FiPlus, FiMinus } from 'react-icons/fi';
 import { useAuth } from '@/app/auth';
+import MarkdownIt from 'markdown-it';
+import MdEditor from 'react-markdown-editor-lite';
+import 'react-markdown-editor-lite/lib/index.css';
 
-const QuillEditor = dynamic(() => import('react-quill'), { ssr: false });
+const mdParser = new MarkdownIt();
 
 const GET_FIGURE = gql`
   query getFigure($id: ID!) {
@@ -182,40 +183,9 @@ const EditFigurePage = ({ params }) => {
         }
     };
 
-    const quillModules = {
-        toolbar: [
-            [{ header: [1, 2, 3, false] }],
-            ['bold', 'italic', 'underline', 'strike', 'blockquote'],
-            [{ list: 'ordered' }, { list: 'bullet' }],
-            ['link', 'image'],
-            [{ align: [] }],
-            [{ color: [] }],
-            ['code-block'],
-            ['clean'],
-        ],
+    const handleEditorChange = ({ text }) => {
+        setBio(text);
     };
-
-
-    const quillFormats = [
-        'header',
-        'bold',
-        'italic',
-        'underline',
-        'strike',
-        'blockquote',
-        'list',
-        'bullet',
-        'link',
-        'image',
-        'align',
-        'color',
-        'code-block',
-    ];
-
-    const handleEditorChange = (newContent) => {
-        setBio(newContent);
-    };
-
 
     return (
         <>
@@ -279,11 +249,11 @@ const EditFigurePage = ({ params }) => {
                     </div>
                     <div className="form-group">
                         <label>نبذة عن الشخصية:</label>
-                        <QuillEditor
+                        <MdEditor
                             value={bio}
+                            style={{ height: '300px' }}
+                            renderHTML={(text) => mdParser.render(text)}
                             onChange={handleEditorChange}
-                            modules={quillModules}
-                            formats={quillFormats}
                         />
                     </div>
                     <div className="form-group">

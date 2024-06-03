@@ -2,11 +2,14 @@
 import React, { useState } from 'react';
 import { useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
-import { FiPlus } from "react-icons/fi";
+import { FiPlus } from 'react-icons/fi';
 import { useAuth } from '@/app/auth';
-import dynamic from 'next/dynamic';
-import 'react-quill/dist/quill.snow.css';
 import { useRouter } from 'next/navigation';
+import MarkdownIt from 'markdown-it';
+import MdEditor from 'react-markdown-editor-lite';
+import 'react-markdown-editor-lite/lib/index.css';
+
+const mdParser = new MarkdownIt();
 
 const ADD_USER = gql`
   mutation addUser($userInput: UserInput) {
@@ -17,8 +20,6 @@ const ADD_USER = gql`
     }
   }
 `;
-
-const QuillEditor = dynamic(() => import('react-quill'), { ssr: false });
 
 const AddUser = () => {
     const router = useRouter();
@@ -116,36 +117,8 @@ const AddUser = () => {
         }
     };
 
-    const quillModules = {
-        toolbar: [
-            [{ header: [1, 2, 3, false] }],
-            ['bold', 'italic', 'underline', 'strike', 'blockquote'],
-            [{ list: 'ordered' }, { list: 'bullet' }],
-            ['link', 'image'],
-            [{ align: [] }],
-            [{ color: [] }],
-            ['code-block'],
-            ['clean'],
-        ],
-    };
-
-    const quillFormats = [
-        'header',
-        'bold',
-        'italic',
-        'underline', 'strike',
-        'blockquote',
-        'list',
-        'bullet',
-        'link',
-        'image',
-        'align',
-        'color',
-        'code-block',
-    ];
-
-    const handleEditorChange = (newContent) => {
-        setBio(newContent);
+    const handleEditorChange = ({ text }) => {
+        setBio(text);
     };
 
     return (
@@ -175,7 +148,7 @@ const AddUser = () => {
                                         onChange={handleInputChange}
                                         accept="image/*"
                                     />
-                                    <FiPlus style={{ fontSize: "50px" }} />
+                                    <FiPlus style={{ fontSize: '50px' }} />
                                     <p>اسحب الملف واسقطة في هذه المساحة او في المتصفح لرفعة</p>
                                 </label>
                             )}
@@ -219,11 +192,11 @@ const AddUser = () => {
                     </div>
                     <div className="form-group">
                         <label>نبذة عن المستخدم:</label>
-                        <QuillEditor
+                        <MdEditor
                             value={bio}
+                            style={{ height: '300px' }}
+                            renderHTML={(text) => mdParser.render(text)}
                             onChange={handleEditorChange}
-                            modules={quillModules}
-                            formats={quillFormats}
                         />
                     </div>
                     <button className='sub-button' type="submit">اضافة</button>

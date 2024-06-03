@@ -3,12 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
-import { FiPlus } from "react-icons/fi";
-import dynamic from 'next/dynamic';
-import 'react-quill/dist/quill.snow.css';
+import { FiPlus } from 'react-icons/fi';
 import { useAuth } from '@/app/auth';
+import MarkdownIt from 'markdown-it';
+import MdEditor from 'react-markdown-editor-lite';
+import 'react-markdown-editor-lite/lib/index.css';
 
-const QuillEditor = dynamic(() => import('react-quill'), { ssr: false });
+const mdParser = new MarkdownIt();
 
 const GET_USER = gql`
   query getUser($id: ID!) {
@@ -75,7 +76,7 @@ const EditUserPage = ({ params }) => {
             setPhone(user.phone);
             setAddress(user.address);
             setBio(user.bio);
-            setRole(user.role);
+            setRole(user.roles);
             setSlug(user.slug);
             setConfirmed(user.confirmed);
             setImageUrl(user.avatar);
@@ -156,37 +157,8 @@ const EditUserPage = ({ params }) => {
         }
     };
 
-    const quillModules = {
-        toolbar: [
-            [{ header: [1, 2, 3, false] }],
-            ['bold', 'italic', 'underline', 'strike', 'blockquote'],
-            [{ list: 'ordered' }, { list: 'bullet' }],
-            ['link', 'image'],
-            [{ align: [] }],
-            [{ color: [] }],
-            ['code-block'],
-            ['clean'],
-        ],
-    };
-
-    const quillFormats = [
-        'header',
-        'bold',
-        'italic',
-        'underline',
-        'strike',
-        'blockquote',
-        'list',
-        'bullet',
-        'link',
-        'image',
-        'align',
-        'color',
-        'code-block',
-    ];
-
-    const handleEditorChange = (newContent) => {
-        setBio(newContent);
+    const handleEditorChange = ({ text }) => {
+        setBio(text);
     };
 
     return (
@@ -218,7 +190,7 @@ const EditUserPage = ({ params }) => {
                                         onChange={handleInputChange}
                                         accept="image/*"
                                     />
-                                    <FiPlus style={{ fontSize: "50px" }} />
+                                    <FiPlus style={{ fontSize: '50px' }} />
                                     <p>اسحب الملف واسقطة في هذه المساحة او في المتصفح لرفعة</p>
                                 </label>
                             )}
@@ -237,29 +209,34 @@ const EditUserPage = ({ params }) => {
                             }}>حذف الصورة</button>
                         )}
                     </div>
+
                     <div className="form-group">
                         <label>اسم المستخدم:</label>
                         <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} />
                     </div>
+
                     <div className="form-group">
                         <label>البريد الإلكتروني:</label>
                         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                     </div>
+
                     <div className="form-group">
                         <label>الهاتف:</label>
                         <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} />
                     </div>
+
                     <div className="form-group">
                         <label>العنوان:</label>
                         <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} />
                     </div>
+
                     <div className="form-group">
                         <label>نبذة عن المستخدم:</label>
-                        <QuillEditor
+                        <MdEditor
                             value={bio}
+                            style={{ height: '300px' }}
+                            renderHTML={(text) => mdParser.render(text)}
                             onChange={handleEditorChange}
-                            modules={quillModules}
-                            formats={quillFormats}
                         />
                     </div>
                     <div className="form-group">

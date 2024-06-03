@@ -2,29 +2,14 @@
 import React, { useState } from 'react';
 import { useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
-import { FiPlus } from "react-icons/fi"; // Import FiMinusCircle icon
+import { FiPlus } from 'react-icons/fi';
 import { useAuth } from '@/app/auth';
-import dynamic from 'next/dynamic';
-import 'react-quill/dist/quill.snow.css';
 import { useRouter } from 'next/navigation';
+import MarkdownIt from 'markdown-it';
+import MdEditor from 'react-markdown-editor-lite';
+import 'react-markdown-editor-lite/lib/index.css';
 
-const GetUsers = gql`
-  query getUsers {
-    users {
-      id
-      username
-    }
-  }
-`;
-
-const GetTags = gql`
-  query getTags {
-    tags {
-      id
-      name
-    }
-  }
-`;
+const mdParser = new MarkdownIt();
 
 const ADD_FIGURE = gql`
   mutation createFigure(
@@ -59,15 +44,13 @@ const ADD_FIGURE = gql`
         bio
         featureImage {
           id
-          url 
+          url
           createdAt
         }
       }
     }
   }
 `;
-
-const QuillEditor = dynamic(() => import('react-quill'), { ssr: false });
 
 const AddFigure = () => {
     const router = useRouter();
@@ -156,40 +139,9 @@ const AddFigure = () => {
         }
     };
 
-    const quillModules = {
-        toolbar: [
-            [{ header: [1, 2, 3, false] }],
-            ['bold', 'italic', 'underline', 'strike', 'blockquote'],
-            [{ list: 'ordered' }, { list: 'bullet' }],
-            ['link', 'image'],
-            [{ align: [] }],
-            [{ color: [] }],
-            ['code-block'],
-            ['clean'],
-        ],
+    const handleEditorChange = ({ text }) => {
+        setBio(text);
     };
-
-
-    const quillFormats = [
-        'header',
-        'bold',
-        'italic',
-        'underline', 'strike',
-        'blockquote',
-        'list',
-        'bullet',
-        'link',
-        'image',
-        'align',
-        'color',
-        'code-block',
-    ];
-
-
-    const handleEditorChange = (newContent) => {
-        setBio(newContent);
-    };
-
 
     return (
         <>
@@ -248,11 +200,11 @@ const AddFigure = () => {
                     </div>
                     <div className="form-group">
                         <label>نبذة عن الشخصية:</label>
-                        <QuillEditor
+                        <MdEditor
                             value={bio}
+                            style={{ height: '300px' }}
+                            renderHTML={(text) => mdParser.render(text)}
                             onChange={handleEditorChange}
-                            modules={quillModules}
-                            formats={quillFormats}
                         />
                     </div>
                     <div className="form-group">

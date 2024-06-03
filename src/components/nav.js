@@ -3,7 +3,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from 'next/navigation';
 import { FaChartSimple } from "react-icons/fa6";
-import { RiFolderImageLine } from "react-icons/ri";
+import { IoSettingsOutline } from "react-icons/io5";
 import { FaUsers } from "react-icons/fa";
 import { MdOutlinePolicy } from "react-icons/md";
 import { RxAvatar } from "react-icons/rx";
@@ -62,6 +62,9 @@ export default function Nave() {
                     </div> */}
                     <div className={pathname === '/dashboard/policy' ? 'dash-link active' : 'dash-link'}>
                         <Link href={'/dashboard/policy'} ><MdOutlinePolicy className={pathname === '/dashboard/policy' ? 'icon act' : 'icon'} />    السياسات  </Link>
+                    </div>
+                    <div className={pathname === '/dashboard/settings' ? 'dash-link active' : 'dash-link'}>
+                        <Link href={'/dashboard/settings'} ><IoSettingsOutline className={pathname === '/dashboard/settings' ? 'icon act' : 'icon'} />    الاعدادات  </Link>
                     </div>
                     <div className={'dash-link'} >
                         <IoIosLogOut className={'icon'} />

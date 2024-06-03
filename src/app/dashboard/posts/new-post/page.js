@@ -5,8 +5,12 @@ import gql from 'graphql-tag';
 import { FiPlus, FiMinus } from 'react-icons/fi';
 import { useAuth } from '@/app/auth';
 import dynamic from 'next/dynamic';
-import 'react-quill/dist/quill.snow.css';
 import { useRouter } from 'next/navigation';
+import MarkdownIt from 'markdown-it';
+import MdEditor from 'react-markdown-editor-lite';
+import 'react-markdown-editor-lite/lib/index.css';
+
+const mdParser = new MarkdownIt();
 
 const GetUsers = gql`
   query getUsers {
@@ -85,8 +89,6 @@ const ADD_POST = gql`
     }
   }
 `;
-
-const QuillEditor = dynamic(() => import('react-quill'), { ssr: false });
 
 const AddPost = () => {
     const router = useRouter();
@@ -212,37 +214,8 @@ const AddPost = () => {
         setSelectedTags((prevTags) => prevTags.filter((tag) => tag.id !== tagId));
     };
 
-    const quillModules = {
-        toolbar: [
-            [{ header: [1, 2, 3, false] }],
-            ['bold', 'italic', 'underline', 'strike', 'blockquote'],
-            [{ list: 'ordered' }, { list: 'bullet' }],
-            ['link', 'image'],
-            [{ align: [] }],
-            [{ color: [] }],
-            ['code-block'],
-            ['clean'],
-        ],
-    };
-
-    const quillFormats = [
-        'header',
-        'bold',
-        'italic',
-        'underline',
-        'strike',
-        'blockquote',
-        'list',
-        'bullet',
-        'link',
-        'image',
-        'align',
-        'color',
-        'code-block',
-    ];
-
-    const handleEditorChange = (newContent) => {
-        setBody(newContent);
+    const handleEditorChange = ({ text }) => {
+        setBody(text);
     };
 
     useEffect(() => {
@@ -391,11 +364,11 @@ const AddPost = () => {
                     </div>
                     <div className="form-group">
                         <label>محتوي المقالة:</label>
-                        <QuillEditor
+                        <MdEditor
                             value={body}
+                            style={{ height: '300px' }}
+                            renderHTML={(text) => mdParser.render(text)}
                             onChange={handleEditorChange}
-                            modules={quillModules}
-                            formats={quillFormats}
                         />
                     </div>
                     <div className="form-group">

@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { MdKeyboardArrowLeft, MdKeyboardArrowRight } from "react-icons/md";
 import { RiDeleteBin6Line } from "react-icons/ri";
 import { useQuery, useMutation } from '@apollo/client';
+import { HiOutlineEye } from "react-icons/hi";
+import { useRouter } from 'next/navigation';
 import gql from 'graphql-tag';
 
 // Define your GraphQL query for the contact page
@@ -40,8 +42,9 @@ const DELETE_QUERY = gql`
 export default function ContactQueries() {
     const [currentPage, setCurrentPage] = useState(1);
     const pageSize = 10;
+    const router = useRouter();
 
-    const { loading, error, data } = useQuery(GET_CONTACT_QUERIES, {
+    const { loading, error, data, refetch } = useQuery(GET_CONTACT_QUERIES, {
         variables: {
             start: (currentPage - 1) * pageSize,
             limitForQueries: pageSize,
@@ -51,7 +54,7 @@ export default function ContactQueries() {
 
     const [deleteQueryMutation] = useMutation(DELETE_QUERY);
 
-    if (loading) return null;
+    if (loading) return <p>Loading...</p>;
     if (error) return <p>Error: {error.message}</p>;
 
     const queries = data.contacts;
@@ -80,6 +83,7 @@ export default function ContactQueries() {
                     },
                 });
                 console.log("Query deleted successfully.");
+                refetch();
             } catch (error) {
                 console.error("Error deleting query:", error.message);
             }
@@ -148,6 +152,7 @@ export default function ContactQueries() {
                                 <td>{query.message}</td>
                                 <td>{formatArabicDate(query.createdAt)}</td>
                                 <td>
+                                    <HiOutlineEye onClick={() => router.push(`/dashboard/contact/${query.id}`)} />
                                     <RiDeleteBin6Line onClick={() => deleteQuery(query.id)} className='delete' style={{ margin: "0px 10px" }} />
                                 </td>
                             </tr>

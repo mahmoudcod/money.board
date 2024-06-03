@@ -475,3 +475,54 @@ textarea {
     margin: 0;
     border-radius: 20px;
 }
+
+
+
+/*3####################### contact ############################ */
+
+
+.contact-item {
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+}
+
+.contact-header {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+.date {
+    position: relative;
+    bottom: 25px;
+    left: 15px;
+    min-width: 150px;
+    font-size: 13px;
+}
+
+.mail a {
+    text-decoration: none;
+    color: black;
+}
+
+.name-email {
+    display: flex;
+    justify-content: space-between;
+}
+
+.message {
+    margin-top: 10px;
+    word-wrap: break-word;
+}
+
+@media (max-width: 600px) {
+    .contact-header {
+        flex-direction: column;
+    }
+
+    /* .name-email {
+        text-align: left;
+        margin-top: 5px;
+    } */
+}
