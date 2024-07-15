@@ -1,5 +1,5 @@
 'use client'
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MdKeyboardArrowLeft, MdKeyboardArrowRight, MdOutlineEdit, MdDelete } from "react-icons/md";
 import { useAuth } from '@/app/auth';
 import { RiDeleteBin6Line } from "react-icons/ri";
@@ -8,28 +8,31 @@ import gql from 'graphql-tag';
 import Link from 'next/link';
 
 const GET_TAGS = gql`
-  query GetTags($start: Int!, $limitForCount: Int!, $limitForTags: Int!) {
-    tagsConnection(start: $start, limit: $limitForCount) {
-      aggregate {
-        count
+  query GetTags($start: Int!, $limit: Int!) {
+    tags(
+      pagination: { start: $start, limit: $limit }
+      sort: ["updatedAt:desc"]
+    ) {
+      data {
+        id
+        attributes {
+          name
+          createdAt
+        }
       }
-    }
-    tags(sort: "updatedAt:desc", start: $start, limit: $limitForTags) {
-      id
-      name
-      createdAt
+      meta {
+        pagination {
+          total
+        }
+      }
     }
   }
 `;
 
 const DELETE_TAG = gql`
   mutation DeleteTag($id: ID!) {
-    deleteTag(input: {
-      where: {
-        id: $id
-      }
-    }) {
-      tag {
+    deleteTag(id: $id) {
+      data {
         id
       }
     }
@@ -41,15 +44,45 @@ export default function Tags() {
     const [selectedTags, setSelectedTags] = useState([]);
     const [errorMessage, setErrorMessage] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
+    const [token, setToken] = useState(null);
+    const [isTokenLoading, setIsTokenLoading] = useState(true);
     const pageSize = 10;
-    const { getToken } = useAuth();
+    const { getToken, refreshToken } = useAuth();
+
+    useEffect(() => {
+        const fetchToken = async () => {
+            setIsTokenLoading(true);
+            try {
+                let currentToken = getToken();
+                console.log("Initial token:", currentToken);
+                if (!currentToken) {
+                    console.log("No token found, attempting to refresh...");
+                    currentToken = await refreshToken();
+                    console.log("Refreshed token:", currentToken);
+                }
+                setToken(currentToken);
+            } catch (error) {
+                console.error("Error fetching token:", error);
+                setErrorMessage("Error fetching authentication token. Please try logging in again.");
+            } finally {
+                setIsTokenLoading(false);
+            }
+        };
+
+        fetchToken();
+    }, [getToken, refreshToken]);
 
     const { loading, error, data, refetch } = useQuery(GET_TAGS, {
         variables: {
             start: (currentPage - 1) * pageSize,
-            limitForTags: pageSize,
-            limitForCount: 100000000
+            limit: pageSize,
         },
+        context: {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        },
+        skip: !token || isTokenLoading,
     });
 
     const [deleteTagMutation] = useMutation(DELETE_TAG);
@@ -57,7 +90,6 @@ export default function Tags() {
     const handleDeleteTag = async (tagId) => {
         setErrorMessage(null);
         setSuccessMessage(null);
-        const token = getToken();
         try {
             await deleteTagMutation({
                 variables: {
@@ -65,18 +97,20 @@ export default function Tags() {
                 },
                 context: {
                     headers: {
-                        Authorization: token ? `Bearer ${token}` : ''
+                        Authorization: `Bearer ${token}`
                     }
                 }
             });
             setSuccessMessage("تم الحذف بنجاح");
-            refetch(); // Refetch data after deletion
+            refetch();
         } catch (error) {
             setErrorMessage("خطأ أثناء الحذف: " + error.message);
         }
     };
 
-    if (loading) return null;
+    if (isTokenLoading) return <div>Loading authentication...</div>;
+    if (!token) return <div>No authentication token available. Please log in again.</div>;
+    if (loading) return <div>Loading data...</div>;
     if (error) {
         return (
             <div className="error-message">
@@ -85,8 +119,15 @@ export default function Tags() {
         );
     }
 
-    const tags = data.tags;
-    const totalCount = data.tagsConnection.aggregate.count;
+    if (!data || !data.tags || !data.tags.data) {
+        return <div>No data available</div>;
+    }
+
+    const tags = data.tags.data.map(tag => ({
+        id: tag.id,
+        ...tag.attributes
+    }));
+    const totalCount = data.tags.meta.pagination.total;
     const totalPages = Math.ceil(totalCount / pageSize);
 
     const nextPage = () => {
@@ -120,10 +161,9 @@ export default function Tags() {
     const deleteSelectedTags = async () => {
         const confirmDelete = window.confirm("هل انت متاكد انك تريد حذف الكلمات المختارة?");
         if (confirmDelete) {
-            const token = getToken();
             try {
                 await Promise.all(selectedTags.map(tagId => handleDeleteTag(tagId)));
-                setSelectedTags([]); // Clear selected tags after deletion
+                setSelectedTags([]);
             } catch (error) {
                 console.error("خطأ أثناء الحذف:", error.message);
             }
@@ -184,7 +224,7 @@ export default function Tags() {
                     <table className="table">
                         <thead>
                             <tr>
-                                <th> <input type="checkbox" checked={selectedTags.length === tags.length} onChange={selectAllTags} /></th>
+                                <th><input type="checkbox" checked={selectedTags.length === tags.length} onChange={selectAllTags} /></th>
                                 <th>اسم العلامة</th>
                                 <th>تاريخ النشر</th>
                                 <th>الإعدادات</th>

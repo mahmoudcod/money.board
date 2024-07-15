@@ -14,7 +14,7 @@ const SearchPosts = () => {
             setError(null);
 
             // Perform the search API call here
-            const response = await fetch(`https://api.ektesad.com/posts?sort=${searchTerm}`);
+            const response = await fetch(`https://money-api.ektesad.com/posts?sort=${searchTerm}`);
             const data = await response.json();
 
             setPosts(data.posts);

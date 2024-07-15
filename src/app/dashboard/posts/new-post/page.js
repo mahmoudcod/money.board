@@ -1,10 +1,9 @@
 'use client'
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import gql from 'graphql-tag';
-import { FiPlus, FiMinus } from 'react-icons/fi';
+import { FiPlus, FiMinus, FiX } from 'react-icons/fi';
 import { useAuth } from '@/app/auth';
-import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import MarkdownIt from 'markdown-it';
 import MdEditor from 'react-markdown-editor-lite';
@@ -12,79 +11,120 @@ import 'react-markdown-editor-lite/lib/index.css';
 
 const mdParser = new MarkdownIt();
 
-const GetUsers = gql`
+const GET_USERS = gql`
   query getUsers {
-    users {
-      id
-      username
+    usersPermissionsUsers {
+      data {
+        id
+        attributes {
+          username
+        }
+      }
     }
   }
 `;
 
-const GetTags = gql`
+const GET_CATEGORIES = gql`
+  query getCategories {
+    categories {
+      data {
+        id
+        attributes {
+          name
+          slug
+          sub_categories {
+            data {
+              id
+              attributes {
+                subName
+                slug
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+const GET_TAGS = gql`
   query getTags {
     tags {
-      id
-      name
+      data {
+        id
+        attributes {
+          name
+        }
+      }
     }
   }
 `;
 
 const ADD_POST = gql`
-  mutation createPost(
+  mutation createBlog(
     $title: String!
-    $category: ENUM_POST_CATEGORY!
-    $subCategory: ENUM_POST_SUBCATEGORY!
-    $body: String!
-    $featureImage: ID
+    $categories: [ID]!
+    $blog: String!
+    $cover: ID
     $slug: String!
     $tags: [ID]
-    $user: ID
-    $excerpt: String!
-    $published: Boolean
-    $publishDate: DateTime!
+    $users_permissions_user: ID
+    $description: String!
   ) {
-    createPost(
-      input: {
-        data: {
-          title: $title
-          category: $category
-          subCategory: $subCategory
-          body: $body
-          featureImage: $featureImage
-          slug: $slug
-          tags: $tags
-          user: $user
-          excerpt: $excerpt
-          published: $published
-          publishDate: $publishDate
-        }
+    createBlog(
+      data: {
+        title: $title
+        categories: $categories
+        blog: $blog
+        cover: $cover
+        slug: $slug
+        tags: $tags
+        users_permissions_user: $users_permissions_user
+        description: $description
       }
     ) {
-      post {
+      data {
         id
-        title
-        category
-        body
-        featureImage {
-          id
-          url
+        attributes {
+          title
+          categories {
+            data {
+              id
+              attributes {
+                name
+              }
+            }
+          }
+          blog
+          cover {
+            data {
+              id
+              attributes {
+                url
+              }
+            }
+          }
+          slug
+          tags {
+            data {
+              id
+              attributes {
+                name
+              }
+            }
+          }
+          users_permissions_user {
+            data {
+              id
+              attributes {
+                username
+              }
+            }
+          }
+          description
           createdAt
+          updatedAt
         }
-        slug
-        tags {
-          id
-          name
-        }
-        user {
-          id
-          username
-        }
-        excerpt
-        published
-        createdAt
-        updatedAt
-        publishDate
       }
     }
   }
@@ -95,10 +135,10 @@ const AddPost = () => {
     const { getToken } = useAuth();
     const token = getToken();
 
-    const { loading: loadingUsers, data: userData, error: usersError } = useQuery(GetUsers);
-    const { loading: loadingTags, data: tagsData, error: tagsError } = useQuery(GetTags);
+    const { loading: loadingUsers, data: userData, error: usersError } = useQuery(GET_USERS);
+    const { loading: loadingTags, data: tagsData, error: tagsError } = useQuery(GET_TAGS);
+    const { loading: loadingCategories, data: categoriesData, error: categoriesError } = useQuery(GET_CATEGORIES);
     const [title, setTitle] = useState('');
-    const [category, setCategory] = useState('');
     const [body, setBody] = useState('');
     const [featureImage, setFeatureImage] = useState(null);
     const [imageUrl, setImageUrl] = useState('');
@@ -107,9 +147,12 @@ const AddPost = () => {
     const [published, setPublished] = useState(false);
     const [selectedTags, setSelectedTags] = useState([]);
     const [selectedUser, setSelectedUser] = useState('');
-    const [publishDate, setPublishDate] = useState('');
     const [addPostError, setAddPostError] = useState(null);
     const [addPostSuccess, setAddPostSuccess] = useState(null);
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [hoveredCategory, setHoveredCategory] = useState(null);
+    const [selectedCategories, setSelectedCategories] = useState([]);
+    const dropdownRef = useRef(null);
 
     const [addPost] = useMutation(ADD_POST, {
         context: {
@@ -128,6 +171,44 @@ const AddPost = () => {
             }, 3000);
         },
     });
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setShowDropdown(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
+    const handleCategorySelect = (categoryId, subcategoryId = null) => {
+        setSelectedCategories(prev => {
+            const newSelection = { categoryId, subcategoryId };
+            const exists = prev.some(item =>
+                item.categoryId === categoryId && item.subcategoryId === subcategoryId
+            );
+
+            if (exists) {
+                return prev.filter(item =>
+                    !(item.categoryId === categoryId && item.subcategoryId === subcategoryId)
+                );
+            } else {
+                return [...prev, newSelection];
+            }
+        });
+    };
+
+    const removeSelection = (categoryId, subcategoryId = null) => {
+        setSelectedCategories(prev =>
+            prev.filter(item =>
+                !(item.categoryId === categoryId && item.subcategoryId === subcategoryId)
+            )
+        );
+    };
 
     const handleImageDrop = (e) => {
         e.preventDefault();
@@ -153,11 +234,12 @@ const AddPost = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const formData = new FormData();
+            let featureImageId = null;
             if (featureImage) {
+                const formData = new FormData();
                 formData.append('files', featureImage);
 
-                const response = await fetch('https://api.ektesad.com/upload', {
+                const response = await fetch('https://money-api.ektesad.com/api/upload', {
                     method: 'POST',
                     headers: {
                         authorization: `Bearer ${token}`,
@@ -170,40 +252,25 @@ const AddPost = () => {
                 }
 
                 const res = await response.json();
-                const id = res[0]?.id;
-
-                await addPost({
-                    variables: {
-                        title,
-                        category,
-                        subCategory: 'items',
-                        body,
-                        featureImage: id,
-                        slug,
-                        tags: selectedTags.map((tag) => tag.id),
-                        user: selectedUser,
-                        excerpt,
-                        published,
-                        publishDate,
-                    },
-                });
-            } else {
-                await addPost({
-                    variables: {
-                        title,
-                        category,
-                        subCategory: 'items',
-                        body,
-                        featureImage: null,
-                        slug,
-                        tags: selectedTags.map((tag) => tag.id),
-                        user: selectedUser,
-                        excerpt,
-                        published,
-                        publishDate,
-                    },
-                });
+                featureImageId = res[0]?.id;
             }
+
+
+
+            const formattedCategories = selectedCategories.map(item => item.categoryId);
+
+            await addPost({
+                variables: {
+                    title,
+                    categories: formattedCategories,
+                    blog: body,
+                    cover: featureImageId,
+                    slug,
+                    tags: selectedTags.map((tag) => tag.id),
+                    users_permissions_user: selectedUser,
+                    description: excerpt,
+                },
+            });
         } catch (error) {
             setAddPostError(error.message);
             setAddPostSuccess(null);
@@ -234,6 +301,7 @@ const AddPost = () => {
                     <h3 className="title">اضافة مقالة</h3>
                 </div>
                 <form className="content" onSubmit={handleSubmit}>
+                    {/* Feature Image */}
                     <div className="form-group">
                         <label>الصورة البارزة للمقالة:</label>
                         <div
@@ -256,114 +324,184 @@ const AddPost = () => {
                                     <p>اسحب الملف واسقطة في هذه المساحة او في المتصفح لرفعة</p>
                                 </label>
                             )}
-                            <input
-                                type="file"
-                                onChange={handleInputChange}
-                                accept="image/*"
-                                className="file-input"
-                            />
                         </div>
                     </div>
+                    {/* Title */}
                     <div className="form-group">
                         <label>اسم المقالة:</label>
-                        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} />
+                        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required />
                     </div>
+                    {/* Slug */}
                     <div className="form-group">
-                        <div className="slug-andCat">
-                            <div className="form-group">
-                                <label>الslug:</label>
-                                <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} />
-                            </div>
-                            <div className="form-group">
-                                <label>القسم:</label>
-                                <select
-                                    className="select-box"
-                                    value={category}
-                                    onChange={(e) => setCategory(e.target.value)}
-                                >
-                                    <option value="">اختر القسم</option>
-                                    <option value="news">أخبار</option>
-                                    <option value="event">أحداث</option>
-                                    <option value="success">نجاح</option>
-                                    <option value="opinion">رأي</option>
-                                    <option value="investment">استثمار</option>
-                                    <option value="culture">ثقافة</option>
-                                    <option value="family">عائلة</option>
-                                    <option value="saving">توفير</option>
-                                    <option value="economy">اقتصاد</option>
-                                    <option value="spending">إنفاق</option>
-                                    <option value="banks">بنوك</option>
-                                    <option value="jobs">وظائف</option>
-                                    <option value="woman">المرأة</option>
-                                    <option value="health">صحة</option>
-                                    <option value="career">مسار وظيفي</option>
-                                    <option value="summary">ملخص</option>
-                                    <option value="incomes">الدخل</option>
-                                    <option value="ideas">أفكار</option>
-                                    <option value="entrepreneurship">ريادة الأعمال</option>
-                                </select>
-                            </div>
-                        </div>
+                        <label>الslug:</label>
+                        <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} required />
                     </div>
+                    {/* Categories */}
                     <div className="form-group">
-                        <div className="slug-andCat">
-                            <div className="form-group">
-                                <label>حالة المقالة:</label>
-                                <div>
-                                    <input
-                                        type="radio"
-                                        id="draft"
-                                        name="published"
-                                        value="draft"
-                                        checked={!published}
-                                        onChange={() => setPublished(false)}
-                                    />
-                                    <label htmlFor="draft">مسودة</label>
-                                    <input
-                                        type="radio"
-                                        id="published"
-                                        name="published"
-                                        value="published"
-                                        checked={published}
-                                        onChange={() => setPublished(true)}
-                                    />
-                                    <label htmlFor="published">نشر</label>
+                        <label>الأقسام:</label>
+                        {loadingCategories ? (
+                            <p>جاري تحميل الأقسام...</p>
+                        ) : categoriesError ? (
+                            <p>خطأ في جلب الأقسام: {categoriesError.message}</p>
+                        ) : (
+                            <div>
+                                <div ref={dropdownRef} style={{ position: 'relative' }}>
+                                    <div
+                                        className="custom-select"
+                                        onClick={() => setShowDropdown(!showDropdown)}
+                                        style={{
+                                            border: '1px solid #ccc',
+                                            padding: '10px',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        اختر الأقسام
+                                    </div>
+                                    {showDropdown && (
+                                        <div
+                                            style={{
+                                                position: 'absolute',
+                                                top: '100%',
+                                                left: 0,
+                                                right: 0,
+                                                backgroundColor: 'white',
+                                                border: '1px solid #ccc',
+                                                zIndex: 1000,
+                                                maxHeight: '300px',
+                                                overflowY: 'auto'
+                                            }}
+                                        >
+                                            {categoriesData.categories.data.map((cat) => (
+                                                <div
+                                                    key={cat.id}
+                                                    onMouseEnter={() => setHoveredCategory(cat.id)}
+                                                    onMouseLeave={() => setHoveredCategory(null)}
+                                                    style={{
+                                                        padding: '10px',
+                                                        cursor: 'pointer',
+                                                        backgroundColor: hoveredCategory === cat.id ? '#f0f0f0' : 'white'
+                                                    }}
+                                                >
+                                                    <div
+                                                        onClick={() => handleCategorySelect(cat.id)}
+                                                        style={{
+                                                            fontWeight: selectedCategories.some(item => item.categoryId === cat.id && !item.subcategoryId) ? 'bold' : 'normal'
+                                                        }}
+                                                    >
+                                                        {cat.attributes.name}
+                                                    </div>
+                                                    {(hoveredCategory === cat.id || selectedCategories.some(item => item.categoryId === cat.id)) &&
+                                                        cat.attributes.sub_categories.data.length > 0 && (
+                                                            <div style={{ marginLeft: '20px', fontSize: '0.9em', color: '#666' }}>
+                                                                {cat.attributes.sub_categories.data.map(subcat => (
+                                                                    <div
+                                                                        key={subcat.id}
+                                                                        onClick={() => handleCategorySelect(cat.id, subcat.id)}
+                                                                        style={{
+                                                                            fontWeight: selectedCategories.some(item => item.categoryId === cat.id && item.subcategoryId === subcat.id) ? 'bold' : 'normal'
+                                                                        }}
+                                                                    >
+                                                                        {subcat.attributes.subName}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                <div style={{ marginTop: '10px' }}>
+                                    {selectedCategories.map((item, index) => {
+                                        const category = categoriesData.categories.data.find(cat => cat.id === item.categoryId);
+                                        const subcategory = item.subcategoryId
+                                            ? category.attributes.sub_categories.data.find(subcat => subcat.id === item.subcategoryId)
+                                            : null;
+                                        return (
+                                            <span
+                                                key={index}
+                                                style={{
+                                                    backgroundColor: '#e0e0e0',
+                                                    padding: '5px 10px',
+                                                    margin: '0 5px 5px 0',
+                                                    borderRadius: '15px',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center'
+                                                }}
+                                            >
+                                                {category.attributes.name}
+                                                {subcategory && ` > ${subcategory.attributes.subName}`}
+                                                <FiX
+                                                    onClick={() => removeSelection(item.categoryId, item.subcategoryId)}
+                                                    style={{ marginLeft: '5px', cursor: 'pointer' }}
+                                                />
+                                            </span>
+                                        );
+                                    })}
                                 </div>
                             </div>
-                            <div className="form-group">
-                                <label>الكاتب:</label>
-                                {loadingUsers ? (
-                                    null
-                                ) : usersError ? (
-                                    <p>خطأ في جلب البيانات: {usersError.message}</p>
-                                ) : (
-                                    <select
-                                        className="select-box"
-                                        value={selectedUser}
-                                        onChange={(e) => setSelectedUser(e.target.value)}
-                                    >
-                                        <option value="">اختر كاتب</option>
-                                        {userData.users.map((user) => (
-                                            <option key={user.id} value={user.id}>
-                                                {user.username}
-                                            </option>
-                                        ))}
-                                    </select>
-                                )}
-                            </div>
+                        )}
+                    </div>
+                    {/* Published Status */}
+                    <div className="form-group">
+                        <label>حالة المقالة:</label>
+                        <div>
+                            <input
+                                type="radio"
+                                id="draft"
+                                name="published"
+                                value="draft"
+                                checked={!published}
+                                onChange={() => setPublished(false)}
+                            />
+                            <label htmlFor="draft">مسودة</label>
+                            <input
+                                type="radio"
+                                id="published"
+                                name="published"
+                                value="published"
+                                checked={published}
+                                onChange={() => setPublished(true)}
+                            />
+                            <label htmlFor="published">نشر</label>
                         </div>
                     </div>
+                    {/* Author */}
                     <div className="form-group">
-                        <label>مقطف عن المقالة:</label>
+                        <label>الكاتب:</label>
+                        {loadingUsers ? (
+                            null
+                        ) : usersError ? (
+                            <p>خطأ في جلب البيانات: {usersError.message}</p>
+                        ) : (
+                            <select
+                                className="select-box"
+                                value={selectedUser}
+                                onChange={(e) => setSelectedUser(e.target.value)}
+                                required
+                            >
+                                <option value="">اختر كاتب</option>
+                                {userData.usersPermissionsUsers.data.map((user) => (
+                                    <option key={user.id} value={user.id}>
+                                        {user.attributes.username}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+                    </div>
+                    {/* Excerpt */}
+                    <div className="form-group">
+                        <label>مقتطف عن المقالة:</label>
                         <textarea
                             style={{ padding: '25px 10px' }}
-                            type="text"
                             value={excerpt}
                             onChange={(e) => setExcerpt(e.target.value)}
+                            required
                         />
                     </div>
+                    {/* Body */}
                     <div className="form-group">
-                        <label>محتوي المقالة:</label>
+                        <label>محتوى المقالة:</label>
                         <MdEditor
                             value={body}
                             style={{ height: '300px' }}
@@ -371,6 +509,7 @@ const AddPost = () => {
                             onChange={handleEditorChange}
                         />
                     </div>
+                    {/* Tags */}
                     <div className="form-group">
                         <label>الكلمات الدليلية:</label>
                         {loadingTags ? (
@@ -382,24 +521,25 @@ const AddPost = () => {
                                 className="select-box"
                                 onChange={(e) => {
                                     const selectedTagId = e.target.value;
-                                    const selectedTag = tagsData.tags.find((tag) => tag.id === selectedTagId);
-                                    setSelectedTags((prevTags) => [...prevTags, selectedTag]);
+                                    const selectedTag = tagsData.tags.data.find((tag) => tag.id === selectedTagId);
+                                    if (selectedTag && !selectedTags.some(tag => tag.id === selectedTag.id)) {
+                                        setSelectedTags((prevTags) => [...prevTags, selectedTag]);
+                                    }
                                 }}
                             >
                                 <option value="">اختر كلمة دليلية</option>
-                                {tagsData.tags.map((tag) => (
+                                {tagsData.tags.data.map((tag) => (
                                     <option key={tag.id} value={tag.id}>
-                                        {tag.name}
+                                        {tag.attributes.name}
                                     </option>
                                 ))}
                             </select>
                         )}
                         {selectedTags.length > 0 && (
                             <div>
-
                                 {selectedTags.map((tag) => (
                                     <span className='tag' key={tag.id}>
-                                        {tag.name}
+                                        {tag.attributes.name}
                                         <button className='delete-tag-button' type="button" onClick={() => removeTag(tag.id)}>
                                             <FiMinus />
                                         </button>
@@ -408,14 +548,6 @@ const AddPost = () => {
                             </div>
                         )}
                     </div>
-                    {/* <div className="form-group">
-                        <label>تاريخ ووقت النشر:</label>
-                        <input
-                            type="datetime-local"
-                            value={publishDate}
-                            onChange={(e) => setPublishDate(e.target.value)}
-                        />
-                    </div> */}
                     <button className="sub-button" type="submit">
                         اضافة
                     </button>

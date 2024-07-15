@@ -1,57 +1,51 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MdKeyboardArrowLeft, MdKeyboardArrowRight, MdOutlineEdit, MdDelete, MdFilterList } from 'react-icons/md';
+import { MdKeyboardArrowLeft, MdKeyboardArrowRight, MdOutlineEdit, MdDelete } from 'react-icons/md';
 import { RiDeleteBin6Line } from 'react-icons/ri';
 import { useAuth } from '@/app/auth';
 import { useQuery, useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
 import Link from 'next/link';
 
-
-
-const GET_POSTS_WITHOUT_FILTER = gql`
-  query GetPosts($start: Int!, $limitForCount: Int!, $limitForPosts: Int!, $searchTerm: String) {
-    postsConnection(start: $start, limit: $limitForCount, where: { title_contains: $searchTerm }) {
-      aggregate {
-        count
+const GET_POSTS = gql`
+  query GetPosts($limitForPosts: Int!, $searchTerm: String, $start: Int!, $publicationState: PublicationState) {
+    blogs(
+      sort: "updatedAt:desc"
+      pagination: { limit: $limitForPosts, start: $start }
+      filters: { title: { contains: $searchTerm } }
+      publicationState: $publicationState
+    ) {
+      data {
+        id
+        attributes {
+          title
+          slug
+          categories {
+            data {
+              attributes {
+                name
+              }
+            }
+          }
+          createdAt
+          updatedAt
+          publishedAt
+        }
       }
-    }
-    posts(sort: "updatedAt:desc", start: $start, limit: $limitForPosts, where: { title_contains: $searchTerm }) {
-      id
-      title
-      slug
-      category
-      createdAt
-      published
+      meta {
+        pagination {
+          total
+        }
+      }
     }
   }
 `;
-
-const GET_POSTS_WITH_FILTER = gql`
-  query GetPosts($start: Int!, $limitForCount: Int!, $limitForPosts: Int!, $searchTerm: String, $published: Boolean) {
-    postsConnection(start: $start, limit: $limitForCount, where: { title_contains: $searchTerm, published: $published }) {
-      aggregate {
-        count
-      }
-    }
-    posts(sort: "updatedAt:desc", start: $start, limit: $limitForPosts, where: { title_contains: $searchTerm, published: $published }) {
-      id
-      title
-      slug
-      category
-      createdAt
-      published
-    }
-  }
-`;
-
-
 
 const DELETE_POST = gql`
   mutation DeletePost($id: ID!) {
-    deletePost(input: { where: { id: $id } }) {
-      post {
+    deleteBlog(id: $id) {
+      data {
         id
       }
     }
@@ -66,7 +60,7 @@ export default function Post() {
     const { getToken } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
-    const [filterStatus, setFilterStatus] = useState(null);  // Add a state for the filter status
+    const [filterStatus, setFilterStatus] = useState('PREVIEW');
     const [isSmallScreen, setSmallScreen] = useState(false);
 
     useEffect(() => {
@@ -75,26 +69,24 @@ export default function Post() {
             setSmallScreen(isSmallScreen);
         }
     }, []);
-    // Use the appropriate query based on whether filterStatus is null
-    const { loading, error, data, refetch } = useQuery(
-        filterStatus === null ? GET_POSTS_WITHOUT_FILTER : GET_POSTS_WITH_FILTER, {
+
+    const { loading, error, data, refetch } = useQuery(GET_POSTS, {
         variables: {
             start: (currentPage - 1) * pageSize,
             limitForPosts: pageSize,
-            limitForCount: 100000000,
             searchTerm: searchQuery,
-            ...(filterStatus !== null && { published: filterStatus })
+            publicationState: filterStatus === 'ALL' ? undefined : filterStatus === 'PUBLISHED' ? 'LIVE' : 'PREVIEW',
         },
     });
-
-
 
     const [deletePostMutation] = useMutation(DELETE_POST);
 
     useEffect(() => {
-        if (searchQuery || filterStatus !== null) {
-            refetch();
-        }
+        refetch({
+            start: (currentPage - 1) * pageSize,
+            searchTerm: searchQuery,
+            publicationState: filterStatus === 'ALL' ? undefined : filterStatus === 'PUBLISHED' ? 'LIVE' : 'PREVIEW',
+        });
     }, [currentPage, searchQuery, filterStatus]);
 
     const handleCheckboxChange = (postId) => {
@@ -143,8 +135,8 @@ export default function Post() {
     if (loading) return null;
     if (error) return <p>Error: {error.message}</p>;
 
-    const posts = data?.posts || [];
-    const totalCount = data?.postsConnection?.aggregate?.count || 0;
+    const posts = data?.blogs?.data || [];
+    const totalCount = data?.blogs?.meta?.pagination?.total || 0;
     const totalPages = Math.ceil(totalCount / pageSize);
 
     const nextPage = () => setCurrentPage((prevPage) => prevPage + 1);
@@ -188,15 +180,18 @@ export default function Post() {
     const handleSearch = (e) => {
         if (e.key === 'Enter') {
             setSearchQuery(searchTerm);
+            setCurrentPage(1);
         }
     };
 
     const handleFilterChange = (status) => {
         setFilterStatus(status);
-        setCurrentPage(1);  // Reset to the first page when changing the filter
+        setCurrentPage(1);
+        refetch({
+            start: 0,
+            publicationState: status === 'ALL' ? undefined : status === 'PUBLISHED' ? 'LIVE' : 'PREVIEW',
+        });
     };
-
-    const pageNumbers = [];
     const maxPagesToShow = 5;
     const middlePage = Math.ceil(maxPagesToShow / 2);
     let startPage = currentPage <= middlePage ? 1 : currentPage - middlePage + 1;
@@ -242,9 +237,24 @@ export default function Post() {
                 </div>
 
                 <div className="filter-container">
-                    <button onClick={() => handleFilterChange(null)} className={filterStatus === null ? 'active-filter' : 'filter-icon '}>الكل</button>
-                    <button onClick={() => handleFilterChange(true)} className={filterStatus === true ? 'active-filter' : 'filter-icon '}>منشور</button>
-                    <button onClick={() => handleFilterChange(false)} className={filterStatus === false ? 'active-filter' : 'filter-icon '}>مسودة</button>
+                    <button
+                        onClick={() => handleFilterChange('ALL')}
+                        className={filterStatus === 'ALL' ? 'active-filter' : 'filter-icon'}
+                    >
+                        الكل
+                    </button>
+                    <button
+                        onClick={() => handleFilterChange('PUBLISHED')}
+                        className={filterStatus === 'PUBLISHED' ? 'active-filter' : 'filter-icon'}
+                    >
+                        منشور
+                    </button>
+                    <button
+                        onClick={() => handleFilterChange('DRAFT')}
+                        className={filterStatus === 'DRAFT' ? 'active-filter' : 'filter-icon'}
+                    >
+                        مسودة
+                    </button>
                 </div>
 
                 {selectedPosts.length > 0 && (
@@ -281,26 +291,26 @@ export default function Post() {
                             </tr>
                         </thead>
                         <tbody>
-                            {posts.map((item) => (
-                                <tr key={item.id}>
+                            {posts.map((post) => (
+                                <tr key={post.id}>
                                     <td>
                                         <input
                                             type="checkbox"
-                                            checked={selectedPosts.includes(item.id)}
-                                            onChange={() => handleCheckboxChange(item.id)}
+                                            checked={selectedPosts.includes(post.id)}
+                                            onChange={() => handleCheckboxChange(post.id)}
                                         />
                                     </td>
-                                    <td>{item.title}</td>
-                                    {!isSmallScreen && <td>{item.slug}</td>}
-                                    {!isSmallScreen && <td>{item.category}</td>}
-                                    {!item.published ? <td>مسودة</td> : <td>منشور</td>}
-                                    {!isSmallScreen && <td>{formatArabicDate(item.createdAt)}</td>}
+                                    <td>{post.attributes.title}</td>
+                                    {!isSmallScreen && <td>{post.attributes.slug}</td>}
+                                    {!isSmallScreen && <td>{post.attributes.categories.data.map(cat => cat.attributes.name).join(', ')}</td>}
+                                    <td>{post.attributes.publishedAt ? 'منشور' : 'مسودة'}</td>
+                                    {!isSmallScreen && <td>{formatArabicDate(post.attributes.createdAt)}</td>}
                                     <td>
-                                        <Link href={`/dashboard/posts/${item.id}`}>
+                                        <Link href={`/dashboard/posts/${post.id}`}>
                                             <MdOutlineEdit style={{ color: '#4D4F5C' }} />
                                         </Link>
                                         <RiDeleteBin6Line
-                                            onClick={() => deletePost(item.id)}
+                                            onClick={() => deletePost(post.id)}
                                             className="delete"
                                             style={{ margin: '0px 10px' }}
                                         />

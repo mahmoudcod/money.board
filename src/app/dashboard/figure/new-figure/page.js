@@ -108,7 +108,7 @@ const AddFigure = () => {
                 formData.append('files', featureImage);
             }
 
-            const response = await fetch('https://api.ektesad.com/upload', {
+            const response = await fetch('https://money-api.ektesad.com/upload', {
                 method: 'POST',
                 headers: {
                     authorization: `Bearer ${token}`,

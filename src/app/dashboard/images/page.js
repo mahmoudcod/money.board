@@ -13,7 +13,7 @@ const FileTable = () => {
     useEffect(() => {
         const fetchFiles = async () => {
             try {
-                const response = await fetch('https://api.ektesad.com/api/file', {
+                const response = await fetch('https://money-api.ektesad.com/api/file', {
                     headers: {
                         Authorization: token ? `Bearer ${token}` : '',
                     },

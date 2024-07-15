@@ -1,6 +1,6 @@
 'use client'
 import React, { useState } from 'react';
-import { useMutation } from '@apollo/client';
+import { useMutation, useQuery } from '@apollo/client';
 import gql from 'graphql-tag';
 import { FiPlus } from 'react-icons/fi';
 import { useAuth } from '@/app/auth';
@@ -11,11 +11,28 @@ import 'react-markdown-editor-lite/lib/index.css';
 
 const mdParser = new MarkdownIt();
 
-const ADD_USER = gql`
-  mutation addUser($userInput: UserInput) {
-    User: createUser(input: { data: $userInput }) {
-      user {
+const GET_ROLES = gql`
+  query GetRoles {
+    usersPermissionsRoles {
+      data {
         id
+        attributes {
+          name
+        }
+      }
+    }
+  }
+`;
+
+const ADD_USER = gql`
+  mutation createUsersPermissionsUser($data: UsersPermissionsUserInput!) {
+    createUsersPermissionsUser(data: $data) {
+      data {
+        id
+        attributes {
+          username
+          email
+        }
       }
     }
   }
@@ -31,12 +48,14 @@ const AddUser = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [role, setRole] = useState('');
-    const [bio, setBio] = useState('');
-    const [avatar, setAvatar] = useState(null);
+    const [description, setdescription] = useState('');
+    const [cover, setcover] = useState(null);
     const [imageUrl, setImageUrl] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
     const [roleError, setRoleError] = useState('');
+
+    const { loading: rolesLoading, error: rolesError, data: rolesData } = useQuery(GET_ROLES);
 
     const [addUser] = useMutation(ADD_USER, {
         context: {
@@ -49,13 +68,13 @@ const AddUser = () => {
     const handleImageDrop = (e) => {
         e.preventDefault();
         const file = e.dataTransfer.files[0];
-        setAvatar(file);
+        setcover(file);
         previewImage(file);
     };
 
     const handleInputChange = (e) => {
         const file = e.target.files[0];
-        setAvatar(file);
+        setcover(file);
         previewImage(file);
     };
 
@@ -79,32 +98,33 @@ const AddUser = () => {
         }
 
         try {
-            const formData = new FormData();
-            if (avatar) {
-                formData.append('files', avatar);
+            let coverId;
+            if (cover) {
+                const formData = new FormData();
+                formData.append('files', cover);
+
+                const response = await fetch('https://money-api.ektesad.com/api/upload', {
+                    method: 'POST',
+                    headers: {
+                        authorization: `Bearer ${token}`,
+                    },
+                    body: formData,
+                });
+
+                const res = await response.json();
+                coverId = res[0]?.id;
             }
 
-            const response = await fetch('https://api.ektesad.com/upload', {
-                method: 'POST',
-                headers: {
-                    authorization: `Bearer ${token}`,
-                },
-                body: formData,
-            });
-
-            const res = await response.json();
-            const id = res[0]?.id;
-
-            await addUser({
+            const { data } = await addUser({
                 variables: {
-                    userInput: {
+                    data: {
                         username,
-                        slug,
                         email,
-                        roles: role,
                         password,
-                        bio,
-                        avatar: id,
+                        role,
+                        description,
+                        cover: coverId,
+                        slug,
                     },
                 },
             });
@@ -118,8 +138,13 @@ const AddUser = () => {
     };
 
     const handleEditorChange = ({ text }) => {
-        setBio(text);
+        setdescription(text);
     };
+
+    if (rolesLoading) return <p>جاري تحميل الأدوار...</p>;
+    if (rolesError) return <p>حدث خطأ أثناء تحميل الأدوار: {rolesError.message}</p>;
+
+    const roles = rolesData?.usersPermissionsRoles?.data || [];
 
     return (
         <>
@@ -138,7 +163,7 @@ const AddUser = () => {
                             onDrop={handleImageDrop}
                         >
                             {imageUrl ? (
-                                <img src={imageUrl} alt="Avatar" style={{ maxWidth: '100%', maxHeight: '200px' }} />
+                                <img src={imageUrl} alt="cover" style={{ maxWidth: '100%', maxHeight: '200px' }} />
                             ) : (
                                 <label htmlFor="file-input" style={{ cursor: 'pointer' }}>
                                     <input
@@ -184,16 +209,18 @@ const AddUser = () => {
                             className={roleError ? 'has-error' : ''}
                         >
                             <option value="">اختر دور</option>
-                            <option value="admin">Admin</option>
-                            <option value="contentManager">Content Manager</option>
-                            <option value="contributor">Contributor</option>
+                            {roles.map((role) => (
+                                <option key={role.id} value={role.id}>
+                                    {role.attributes.name}
+                                </option>
+                            ))}
                         </select>
                         {roleError && <p className="input-message is-warning is-small">{roleError}</p>}
                     </div>
                     <div className="form-group">
                         <label>نبذة عن المستخدم:</label>
                         <MdEditor
-                            value={bio}
+                            value={description}
                             style={{ height: '300px' }}
                             renderHTML={(text) => mdParser.render(text)}
                             onChange={handleEditorChange}

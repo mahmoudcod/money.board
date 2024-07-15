@@ -13,26 +13,58 @@ const mdParser = new MarkdownIt();
 
 const GET_USER = gql`
   query getUser($id: ID!) {
-    user(id: $id) {
-      id
-      username
-      email
-      phone
-      address
-      bio
-      roles
-      slug
-      avatar
-      confirmed
+    usersPermissionsUser(id: $id) {
+      data {
+        id
+        attributes {
+          username
+          email
+          description
+          role {
+            data {
+              id
+              attributes {
+                name
+              }
+            }
+          }
+          slug
+          cover {
+            data {
+              id
+              attributes {
+                url
+              }
+            }
+          }
+          confirmed
+        }
+      }
     }
   }
 `;
 
-export const UPDATE_USER = gql`
-  mutation updateUser($where: InputID, $userInput: UserInput) {
-    User: updateUser(input: { where: $where, data: $userInput }) {
-      user {
+const GET_ROLES = gql`
+  query GetRoles {
+    usersPermissionsRoles {
+      data {
         id
+        attributes {
+          name
+        }
+      }
+    }
+  }
+`;
+
+const UPDATE_USER = gql`
+  mutation updateUsersPermissionsUser($id: ID!, $data: UsersPermissionsUserInput!) {
+    updateUsersPermissionsUser(id: $id, data: $data) {
+      data {
+        id
+        attributes {
+          username
+        }
       }
     }
   }
@@ -47,13 +79,15 @@ const EditUserPage = ({ params }) => {
         variables: { id },
     });
 
+    const { data: rolesData } = useQuery(GET_ROLES);
+
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
-    const [phone, setPhone] = useState('');
-    const [address, setAddress] = useState('');
-    const [bio, setBio] = useState('');
+    // const [phone, setPhone] = useState('');
+    // const [address, setAddress] = useState('');
+    const [description, setdescription] = useState('');
     const [role, setRole] = useState('');
-    const [avatar, setAvatar] = useState(null);
+    const [cover, setcover] = useState(null);
     const [imageUrl, setImageUrl] = useState('');
     const [slug, setSlug] = useState('');
     const [confirmed, setConfirmed] = useState(true);
@@ -70,29 +104,29 @@ const EditUserPage = ({ params }) => {
 
     useEffect(() => {
         if (!loading && data) {
-            const user = data.user;
+            const user = data.usersPermissionsUser.data.attributes;
             setUsername(user.username);
             setEmail(user.email);
-            setPhone(user.phone);
-            setAddress(user.address);
-            setBio(user.bio);
-            setRole(user.roles);
+            // setPhone(user.phone);
+            // setAddress(user.address);
+            setdescription(user.description);
+            setRole(user.role.data.id);
             setSlug(user.slug);
             setConfirmed(user.confirmed);
-            setImageUrl(user.avatar);
+            setImageUrl(user.cover?.data?.attributes?.url);
         }
     }, [loading, data]);
 
     const handleImageDrop = (e) => {
         e.preventDefault();
         const file = e.dataTransfer.files[0];
-        setAvatar(file);
+        setcover(file);
         previewImage(file);
     };
 
     const handleInputChange = (e) => {
         const file = e.target.files[0];
-        setAvatar(file);
+        setcover(file);
         previewImage(file);
     };
 
@@ -110,14 +144,13 @@ const EditUserPage = ({ params }) => {
         setSuccessMessage('');
 
         try {
-            let avatarId = null;
+            let coverId = null;
 
-            // Check if there's a new image to upload
-            if (avatar) {
+            if (cover) {
                 const formData = new FormData();
-                formData.append('files', avatar);
+                formData.append('files', cover);
 
-                const response = await fetch('https://api.ektesad.com/upload', {
+                const response = await fetch('https://money-api.ektesad.com/api/upload', {
                     method: 'POST',
                     headers: {
                         authorization: `Bearer ${token}`,
@@ -126,23 +159,22 @@ const EditUserPage = ({ params }) => {
                 });
 
                 const res = await response.json();
-                avatarId = res[0].id;
+                coverId = res[0].id;
             } else if (imageUrl) {
-                // If there's an existing image URL, use its ID
-                avatarId = data.user.avatar?.id;
+                coverId = data.usersPermissionsUser.data.attributes.cover?.data?.id;
             }
 
             await updateUser({
                 variables: {
-                    where: { id },
-                    userInput: {
+                    id,
+                    data: {
                         username,
                         email,
-                        phone,
-                        address,
-                        bio,
-                        roles: role,
-                        avatar: avatarId,
+                        // phone,
+                        // address,
+                        description,
+                        role,
+                        cover: coverId,
                         slug,
                         confirmed,
                     },
@@ -158,8 +190,10 @@ const EditUserPage = ({ params }) => {
     };
 
     const handleEditorChange = ({ text }) => {
-        setBio(text);
+        setdescription(text);
     };
+
+    const roles = rolesData?.usersPermissionsRoles?.data || [];
 
     return (
         <>
@@ -179,7 +213,7 @@ const EditUserPage = ({ params }) => {
                         >
                             {imageUrl ? (
                                 <>
-                                    <img src={imageUrl} alt="Avatar" style={{ maxWidth: '100%', maxHeight: '200px' }} />
+                                    <img src={imageUrl} alt="cover" style={{ maxWidth: '100%', maxHeight: '200px' }} />
                                 </>
                             ) : (
                                 <label htmlFor="file-input" style={{ cursor: 'pointer' }}>
@@ -204,7 +238,7 @@ const EditUserPage = ({ params }) => {
 
                         {imageUrl && (
                             <button type="button" className="delete-image-button" onClick={() => {
-                                setAvatar(null);
+                                setcover(null);
                                 setImageUrl('');
                             }}>حذف الصورة</button>
                         )}
@@ -220,20 +254,20 @@ const EditUserPage = ({ params }) => {
                         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                     </div>
 
-                    <div className="form-group">
+                    {/* <div className="form-group">
                         <label>الهاتف:</label>
                         <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} />
-                    </div>
+                    </div> */}
 
-                    <div className="form-group">
+                    {/* <div className="form-group">
                         <label>العنوان:</label>
                         <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} />
-                    </div>
+                    </div> */}
 
                     <div className="form-group">
                         <label>نبذة عن المستخدم:</label>
                         <MdEditor
-                            value={bio}
+                            value={description}
                             style={{ height: '300px' }}
                             renderHTML={(text) => mdParser.render(text)}
                             onChange={handleEditorChange}
@@ -242,10 +276,12 @@ const EditUserPage = ({ params }) => {
                     <div className="form-group">
                         <label>الدور:</label>
                         <select value={role} onChange={(e) => setRole(e.target.value)}>
-                            <option value={role}>اختر الدور</option>
-                            <option value="admin">Admin</option>
-                            <option value="contentManager">Content Manager</option>
-                            <option value="contributor">Contributor</option>
+                            <option value="">اختر الدور</option>
+                            {roles.map((role) => (
+                                <option key={role.id} value={role.id}>
+                                    {role.attributes.name}
+                                </option>
+                            ))}
                         </select>
                     </div>
                     <div className="form-group">

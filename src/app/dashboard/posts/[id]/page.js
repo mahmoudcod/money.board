@@ -141,7 +141,7 @@ const EditPostPage = ({ params }) => {
             setPublished(post.published || false);
             setSelectedTags(post.tags || []);
             if (post.featureImage) {
-                setImageUrl(`https://api.ektesad.com/${post.featureImage.url}`);
+                setImageUrl(`https://money-api.ektesad.com/${post.featureImage.url}`);
             }
         }
     }, [loading, data]);
@@ -181,7 +181,7 @@ const EditPostPage = ({ params }) => {
                 const formData = new FormData();
                 formData.append('files', featureImage);
 
-                const response = await fetch('https://api.ektesad.com/upload', {
+                const response = await fetch('https://money-api.ektesad.com/upload', {
                     method: 'POST',
                     headers: {
                         authorization: `Bearer ${token}`,

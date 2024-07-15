@@ -10,7 +10,7 @@ const AuthContext = createContext();
 // Function to set up Axios instance with token
 const axiosWithAuth = (token) => {
     const instance = axios.create({
-        baseURL: 'https://api.ektesad.com',
+        baseURL: 'https://money-api.ektesad.com',
         headers: {
             'Authorization': `Bearer ${token}`
         }
@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (identifier, password) => {
         try {
-            const response = await axios.post('https://api.ektesad.com/auth/local', { identifier, password });
+            const response = await axios.post('https://money-api.ektesad.com/api/auth/local', { identifier, password });
             const token = response.data.jwt;
             if (!token) {
                 throw new Error('JWT token not found in response');

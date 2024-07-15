@@ -109,7 +109,7 @@ const EditFigurePage = ({ params }) => {
             setBio(figure.bio);
             setPublished(figure.published);
             setSlug(figure.slug);
-            setImageUrl(`https://api.ektesad.com/${figure.featureImage?.url || ''}`);
+            setImageUrl(`https://money-api.ektesad.com/${figure.featureImage?.url || ''}`);
         }
     }, [loading, data]);
 
@@ -147,7 +147,7 @@ const EditFigurePage = ({ params }) => {
                 const formData = new FormData();
                 formData.append('files', featureImage);
 
-                const response = await fetch('https://api.ektesad.com/upload', {
+                const response = await fetch('https://money-api.ektesad.com/upload', {
                     method: 'POST',
                     headers: {
                         authorization: `Bearer ${token}`,

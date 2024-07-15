@@ -8,31 +8,38 @@ import gql from 'graphql-tag';
 import Link from 'next/link';
 
 const GET_USERS = gql`
-  query getUsers($start: Int!, $limitForCount: Int!, $limitForUsers: Int!) {
-    usersConnection(start: $start, limit: $limitForCount) {
-      aggregate {
-        count
+  query getUsers($start: Int!, $limit: Int!) {
+    usersPermissionsUsers(pagination: { start: $start, limit: $limit }, sort: "createdAt:desc") {
+      meta {
+        pagination {
+          total
+        }
       }
-    }
-    users(sort: "createdAt:desc", start: $start, limit: $limitForUsers) {
-      id
-      username
-      slug
-      email
-      roles
-      createdAt
+      data {
+        id
+        attributes {
+          username
+          email
+          role{
+            data{
+                id
+                attributes{
+                    name
+                }
+
+            }
+          }
+          createdAt
+        }
+      }
     }
   }
 `;
 
 const DELETE_USER = gql`
   mutation DeleteUser($id: ID!) {
-    deleteUser(input: {
-      where: {
-        id: $id
-      }
-    }) {
-      user {
+    deleteUsersPermissionsUser(id: $id) {
+      data {
         id
       }
     }
@@ -50,10 +57,9 @@ export default function Users() {
     const { loading, error, data, refetch } = useQuery(GET_USERS, {
         variables: {
             start: (currentPage - 1) * pageSize,
-            limitForUsers: pageSize,
-            limitForCount: 100000000
+            limit: pageSize
         },
-        notifyOnNetworkStatusChange: true, // Ensure the query gets updated when variables change
+        notifyOnNetworkStatusChange: true,
     });
 
     const [deleteUserMutation] = useMutation(DELETE_USER);
@@ -74,7 +80,7 @@ export default function Users() {
                 }
             });
             setSuccessMessage("تم الحذف بنجاح");
-            refetch(); // Refetch data after deletion
+            refetch();
         } catch (error) {
             setErrorMessage("خطأ أثناء الحذف: " + error.message);
         }
@@ -83,8 +89,7 @@ export default function Users() {
     useEffect(() => {
         refetch({
             start: (currentPage - 1) * pageSize,
-            limitForUsers: pageSize,
-            limitForCount: 100000000
+            limit: pageSize
         });
     }, [currentPage, refetch]);
 
@@ -97,8 +102,8 @@ export default function Users() {
         );
     }
 
-    const users = data.users;
-    const totalCount = data.usersConnection.aggregate.count;
+    const users = data?.usersPermissionsUsers?.data || [];
+    const totalCount = data?.usersPermissionsUsers?.meta?.pagination?.total || 0;
     const totalPages = Math.ceil(totalCount / pageSize);
 
     const nextPage = () => {
@@ -139,7 +144,7 @@ export default function Users() {
             const token = getToken();
             try {
                 await Promise.all(selectedUsers.map(userId => handleDeleteUser(userId)));
-                setSelectedUsers([]); // Clear selected users after deletion
+                setSelectedUsers([]);
             } catch (error) {
                 console.error("خطأ أثناء الحذف:", error.message);
             }
@@ -212,10 +217,10 @@ export default function Users() {
                             {users.map(user => (
                                 <tr key={user.id}>
                                     <td><input type='checkbox' checked={selectedUsers.includes(user.id)} onChange={() => toggleUserSelection(user.id)} /></td>
-                                    <td>{user.username}</td>
-                                    <td>{user.email}</td>
-                                    <td>{user.roles}</td>
-                                    <td>{formatArabicDate(user.createdAt)}</td>
+                                    <td>{user.attributes.username}</td>
+                                    <td>{user.attributes.email}</td>
+                                    <td>{user.attributes.role.data.attributes.name}</td>
+                                    <td>{formatArabicDate(user.attributes.createdAt)}</td>
                                     <td>
                                         <Link href={`/dashboard/users/${user.id}`}>
                                             <MdOutlineEdit style={{ color: "#4D4F5C" }} />

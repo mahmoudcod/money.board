@@ -6,12 +6,17 @@ import { useAuth } from '@/app/auth';
 
 const GET_CONTACT_QUERY = gql`
   query GetContactQuery($id: ID!) {
-    contact(id: $id) {
-      id
-      name
-      email
-      message
-      createdAt
+    contactUs(id: $id) {
+     data {
+        id
+        attributes {
+          name
+          email
+          phone
+          message
+          createdAt
+        }
+      }
     }
   }
 `;
@@ -23,7 +28,6 @@ const ContactQuery = ({ params }) => {
 
     const { data, loading, error } = useQuery(GET_CONTACT_QUERY, {
         variables: { id: id },
-
         context: {
             headers: {
                 authorization: token ? `Bearer ${token}` : '',
@@ -33,8 +37,7 @@ const ContactQuery = ({ params }) => {
 
     if (loading) return null
     if (error) return <p>Error: {error.message}</p>;
-
-    const { contact } = data;
+    const contact = data.contactUs.data.attributes
 
     return (
         <>
@@ -49,6 +52,8 @@ const ContactQuery = ({ params }) => {
                         </div>
                         <div className='name-email'>
                             <p><strong>الاسم:</strong> {contact.name} </p>
+                            <p><strong>الهاتف:</strong> {contact.phone} </p>
+
                             <p className='mail'><strong>البريد الإلكتروني:</strong> <a href={`mailto:${contact.email}`}>{contact.email}</a></p>
                         </div>
                         <p className="message"><strong>الرسالة:</strong> {contact.message}</p>

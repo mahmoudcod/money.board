@@ -5,7 +5,7 @@ import { useAuth } from './auth'; // Import your authentication hook
 
 function makeClient(token) {
     const httpLink = new HttpLink({
-        uri: "https://api.ektesad.com/graphql",
+        uri: "https://money-api.ektesad.com/graphql",
         fetchOptions: { cache: "no-store" },
     });
 

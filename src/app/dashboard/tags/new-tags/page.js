@@ -6,19 +6,13 @@ import { useAuth } from '@/app/auth';
 import { useRouter } from 'next/navigation';
 
 const ADD_TAG = gql`
-  mutation createTag(
-    $name: String!
-  ) {
-    createTag(
-      input: {
-        data: {
-          name: $name
-        }
-      }
-    ) {
-      tag {
+  mutation CreateTag($name: String!) {
+    createTag(data: { name: $name }) {
+      data {
         id
-        name
+        attributes {
+          name
+        }
       }
     }
   }
@@ -27,8 +21,6 @@ const ADD_TAG = gql`
 const AddTag = () => {
   const router = useRouter();
   const { getToken } = useAuth();
-  const token = getToken();
-
   const [name, setName] = useState('');
   const [errorMessage, setErrorMessage] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
@@ -37,7 +29,7 @@ const AddTag = () => {
   const [addTag] = useMutation(ADD_TAG, {
     context: {
       headers: {
-        authorization: token ? `Bearer ${token}` : '',
+        authorization: `Bearer ${getToken()}`,
       },
     },
   });
@@ -54,7 +46,10 @@ const AddTag = () => {
       });
       // Clear form fields and redirect to /dashboard/tags after successful submission
       setName('');
-      router.push('/dashboard/tags');
+      setSuccessMessage("تمت إضافة العلامة بنجاح");
+      setTimeout(() => {
+        router.push('/dashboard/tags');
+      }, 2000);
     } catch (error) {
       setErrorMessage("خطأ أثناء إضافة العلامة: " + error.message);
     } finally {
@@ -73,7 +68,7 @@ const AddTag = () => {
         <form className="content" onSubmit={handleSubmit}>
           <div className="form-group">
             <label>اسم العلامة:</label>
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
           <button className='sub-button' type="submit" disabled={isLoading}>
             {isLoading ? 'جاري الإضافة...' : 'اضافة'}
