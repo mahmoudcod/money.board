@@ -26,7 +26,8 @@ export default function LoginPage() {
     return (
         <form className="login-page" onSubmit={handleSubmit}>
             <div className='login'>
-                <img src='/favicon.ico' alt="Logo" />
+                {/* <img src='/favicon.ico' alt="Logo" /> */}
+                <h1>صناع المال</h1>
             </div>
 
             <div className="login-info">
