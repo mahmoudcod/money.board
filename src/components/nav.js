@@ -67,9 +67,9 @@ export default function Nave() {
                     <div className={pathname === '/dashboard/policy' ? 'dash-link active' : 'dash-link'}>
                         <Link href={'/dashboard/policy'} ><MdOutlinePolicy className={pathname === '/dashboard/policy' ? 'icon act' : 'icon'} />    السياسات  </Link>
                     </div>
-                    {/* <div className={pathname === '/dashboard/settings' ? 'dash-link active' : 'dash-link'}>
+                    <div className={pathname === '/dashboard/settings' ? 'dash-link active' : 'dash-link'}>
                         <Link href={'/dashboard/settings'} ><IoSettingsOutline className={pathname === '/dashboard/settings' ? 'icon act' : 'icon'} />    الاعدادات  </Link>
-                    </div> */}
+                    </div>
                     <div className={'dash-link'} >
                         <IoIosLogOut className={'icon'} />
                         <a href="" onClick={handleLogout}>تسجيل خروج</a>

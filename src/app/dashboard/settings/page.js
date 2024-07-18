@@ -4,68 +4,59 @@ import { useRouter } from 'next/navigation';
 import { useQuery, useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
 import { useAuth } from '@/app/auth';
+import { FiPlus } from 'react-icons/fi';
 
-const GET_SETTINGS = gql`
-  query getSettings {
-    Settings: settings {
-      facebook
-      googlePlus
-      pinterest
-      twitter
-      email
-      phone
-      appLogo
-    }
-  }
-`;
-
-const UPDATE_SETTINGS = gql`
-  mutation updateSettings(
-    $facebook: String!
-    $googlePlus: String!
-    $pinterest: String!
-    $twitter: String!
-    $email: String!
-    $phone: String!
-    $appLogo: String!
-  ) {
-    updateSetting(
-      input: {
-        data: {
-          facebook: $facebook
-          googlePlus: $googlePlus
-          pinterest: $pinterest
-          twitter: $twitter
-          email: $email
-          phone: $phone
-          appLogo: $appLogo
+const GET_LOGO = gql`
+  query getLogo {
+    logo {
+      data {
+        id
+        attributes {
+          logo {
+            data {
+              attributes {
+                url
+              }
+            }
+          }
         }
       }
-    ) {
-      setting {
+    }
+  }
+`;
+
+const UPDATE_LOGO = gql`
+  mutation updateLogo($id: ID!, $logo: ID!) {
+    updateLogo(id: $id, data: { logo: $logo }) {
+      data {
         id
+        attributes {
+          logo {
+            data {
+              attributes {
+                url
+              }
+            }
+          }
+        }
       }
     }
   }
 `;
 
-const SettingsPage = () => {
+const LogoSettingsPage = () => {
     const router = useRouter();
     const { getToken } = useAuth();
     const token = getToken();
 
-    const [facebook, setFacebook] = useState('');
-    const [googlePlus, setGooglePlus] = useState('');
-    const [pinterest, setPinterest] = useState('');
-    const [twitter, setTwitter] = useState('');
-    const [email, setEmail] = useState('');
-    const [phone, setPhone] = useState('');
-    const [appLogo, setAppLogo] = useState('');
+    const [logoId, setLogoId] = useState('');
+    const [logoFile, setLogoFile] = useState(null);
+    const [imageUrl, setImageUrl] = useState('');
     const [errorMessage, setErrorMessage] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    const { loading, error, data } = useQuery(GET_SETTINGS, {
+    const { loading, error, data } = useQuery(GET_LOGO, {
         context: {
             headers: {
                 authorization: token ? `Bearer ${token}` : '',
@@ -73,7 +64,7 @@ const SettingsPage = () => {
         },
     });
 
-    const [updateSettings] = useMutation(UPDATE_SETTINGS, {
+    const [updateLogo] = useMutation(UPDATE_LOGO, {
         context: {
             headers: {
                 authorization: token ? `Bearer ${token}` : '',
@@ -82,38 +73,74 @@ const SettingsPage = () => {
     });
 
     useEffect(() => {
-        if (!loading && data) {
-            const settings = data.Settings[0]; // Assuming data.Settings is an array and we need the first item
-            setFacebook(settings.facebook || '');
-            setGooglePlus(settings.googlePlus || '');
-            setPinterest(settings.pinterest || '');
-            setTwitter(settings.twitter || '');
-            setEmail(settings.email || '');
-            setPhone(settings.phone || '');
-            setAppLogo(settings.appLogo || '');
+        if (!loading && data && data.logo && data.logo.data) {
+            setLogoId(data.logo.data.id);
+            setImageUrl(data.logo.data.attributes.logo.data?.attributes.url || '');
         }
     }, [loading, data]);
 
+    const handleImageDrop = (e) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0];
+        setLogoFile(file);
+        previewImage(file);
+    };
+
+    const handleInputChange = (e) => {
+        const file = e.target.files[0];
+        setLogoFile(file);
+        previewImage(file);
+    };
+
+    const previewImage = (file) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setImageUrl(reader.result);
+        };
+        reader.readAsDataURL(file);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setErrorMessage(null);
         setIsLoading(true);
+        setErrorMessage(null);
+        setSuccessMessage(null);
+
         try {
-            await updateSettings({
+            let logoFileId = null;
+            if (logoFile) {
+                const formData = new FormData();
+                formData.append('files', logoFile);
+
+                const response = await fetch('https://money-api.ektesad.com/api/upload', {
+                    method: 'POST',
+                    headers: {
+                        authorization: `Bearer ${token}`,
+                    },
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to upload image');
+                }
+
+                const res = await response.json();
+                logoFileId = res[0]?.id;
+            }
+
+            await updateLogo({
                 variables: {
-                    facebook,
-                    googlePlus,
-                    pinterest,
-                    twitter,
-                    email,
-                    phone,
-                    appLogo,
+                    id: logoId,
+                    logo: logoFileId,
                 },
             });
-            setSuccessMessage("تم تحديث الإعدادات بنجاح");
-            router.push(`/dashboard/settings`);
+
+            setSuccessMessage("تم تحديث الشعار بنجاح");
+            setTimeout(() => {
+                router.push('/dashboard/settings');
+            }, 3000);
         } catch (error) {
-            setErrorMessage("خطأ أثناء تحديث الإعدادات: " + error.message);
+            setErrorMessage("خطأ أثناء تحديث الشعار: " + error.message);
         } finally {
             setIsLoading(false);
         }
@@ -126,46 +153,54 @@ const SettingsPage = () => {
         <>
             <main className="head">
                 <div className="head-title">
-                    <h3 className="title">تعديل الإعدادات</h3>
+                    <h3 className="title">تعديل شعار التطبيق</h3>
                 </div>
-                {errorMessage && <div className="error-message">{errorMessage}</div>}
-                {successMessage && <div className="success-message">{successMessage}</div>}
                 <form className="content" onSubmit={handleSubmit}>
                     <div className="form-group">
-                        <label>فيسبوك:</label>
-                        <input type="text" value={facebook} onChange={(e) => setFacebook(e.target.value)} />
-                    </div>
-                    <div className="form-group">
-                        <label>جوجل بلس:</label>
-                        <input type="text" value={googlePlus} onChange={(e) => setGooglePlus(e.target.value)} />
-                    </div>
-                    <div className="form-group">
-                        <label>بينتيريست:</label>
-                        <input type="text" value={pinterest} onChange={(e) => setPinterest(e.target.value)} />
-                    </div>
-                    <div className="form-group">
-                        <label>تويتر:</label>
-                        <input type="text" value={twitter} onChange={(e) => setTwitter(e.target.value)} />
-                    </div>
-                    <div className="form-group">
-                        <label>البريد الإلكتروني:</label>
-                        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                    </div>
-                    <div className="form-group">
-                        <label>الهاتف:</label>
-                        <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} />
-                    </div>
-                    <div className="form-group">
                         <label>شعار التطبيق:</label>
-                        <input type="text" value={appLogo} onChange={(e) => setAppLogo(e.target.value)} />
+                        <div
+                            className="drop-area"
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={handleImageDrop}
+                        >
+                            {imageUrl ? (
+                                <img src={imageUrl} alt="Logo" style={{ maxWidth: '100%', maxHeight: '200px' }} />
+                            ) : (
+                                <label htmlFor="file-input" style={{ cursor: 'pointer' }}>
+                                    <input
+                                        type="file"
+                                        id="file-input"
+                                        style={{ display: 'none' }}
+                                        onChange={handleInputChange}
+                                        accept="image/*"
+                                    />
+                                    <FiPlus style={{ fontSize: '50px' }} />
+                                    <p>اسحب الملف واسقطة في هذه المساحة او في المتصفح لرفعة</p>
+                                </label>
+                            )}
+                        </div>
+                        {imageUrl ? (
+                            <button
+                                type="button"
+                                className="delete-image-button"
+                                onClick={() => {
+                                    setImageUrl(null);
+                                    setImageUrl('');
+                                }}
+                            >
+                                حذف الصورة
+                            </button>
+                        ) : null}
                     </div>
                     <button className='sub-button' type="submit" disabled={isLoading}>
                         {isLoading ? 'جاري التحديث...' : 'حفظ التغييرات'}
                     </button>
                 </form>
+                {errorMessage && <div className="error-message">{errorMessage}</div>}
+                {successMessage && <div className="success-message">{successMessage}</div>}
             </main>
         </>
     );
 };
 
-export default SettingsPage;
+export default LogoSettingsPage;
