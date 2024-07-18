@@ -55,16 +55,19 @@ export default function Nave() {
                     <div className={pathname === '/dashboard/contact' ? 'dash-link active' : 'dash-link'}>
                         <Link href={'/dashboard/contact'} ><LuMessagesSquare className={pathname === '/dashboard/contact' ? 'icon act' : 'icon'} /> رسائل تواصل معنا  </Link>
                     </div>
+                    <div className={pathname === '/dashboard/commint' ? 'dash-link active' : 'dash-link'}>
+                        <Link href={'/dashboard/commint'} ><LuMessagesSquare className={pathname === '/dashboard/commint' ? 'icon act' : 'icon'} /> التعليقات </Link>
+                    </div>
                     {/* <div className={pathname === '/dashboard/ads' ? 'dash-link active' : 'dash-link'}>
                         <Link href={'/dashboard/ads'} ><TbSpeakerphone className={pathname === '/dashboard/ads' ? 'icon act' : 'icon'} />  طلبات الاعلانات  </Link>
                     </div> */}
                     {/* <div className={pathname === '/dashboard/images' ? 'dash-link active' : 'dash-link'}>
                         <Link href={'/dashboard/images'} ><RiFolderImageLine className={pathname === '/dashboard/images' ? 'icon act' : 'icon'} />   مكتبة الصور  </Link>
                     </div> */}
-                    {/* <div className={pathname === '/dashboard/policy' ? 'dash-link active' : 'dash-link'}>
+                    <div className={pathname === '/dashboard/policy' ? 'dash-link active' : 'dash-link'}>
                         <Link href={'/dashboard/policy'} ><MdOutlinePolicy className={pathname === '/dashboard/policy' ? 'icon act' : 'icon'} />    السياسات  </Link>
                     </div>
-                    <div className={pathname === '/dashboard/settings' ? 'dash-link active' : 'dash-link'}>
+                    {/* <div className={pathname === '/dashboard/settings' ? 'dash-link active' : 'dash-link'}>
                         <Link href={'/dashboard/settings'} ><IoSettingsOutline className={pathname === '/dashboard/settings' ? 'icon act' : 'icon'} />    الاعدادات  </Link>
                     </div> */}
                     <div className={'dash-link'} >

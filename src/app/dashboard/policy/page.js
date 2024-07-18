@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
-import dynamic from 'next/dynamic';
 import { useAuth } from '@/app/auth';
 import MarkdownIt from 'markdown-it';
 import MdEditor from 'react-markdown-editor-lite';
@@ -11,71 +10,70 @@ import 'react-markdown-editor-lite/lib/index.css';
 
 const mdParser = new MarkdownIt();
 
-const GET_DATA = gql`
-  query getData($id: ID!) {
-    about(id: $id) {
-      id
-      usage
-      privacy
-      mediaCh
-      vision
-      description
-      mission
-    }
-  }
-`;
-
-const UPDATE_DATA = gql`
-  mutation updateAbout(
-    $id: ID!
-    $usage: String!
-    $privacy: String!
-    $mediaCh: String!
-    $vision: String!
-    $description: String!
-    $mission: String!
-  ) {
-    updateAbout(
-      input: {
-        where: { id: $id }
-        data: {
-          usage: $usage
-          privacy: $privacy
-          mediaCh: $mediaCh
-          vision: $vision
-          description: $description
-          mission: $mission
+const GET_POLICE = gql`
+  query getPolice {
+    police {
+      data {
+        attributes {
+          advertising
+          publish
+          useage
+          privacy
+          about
+          createdAt
+          updatedAt
+          publishedAt
         }
       }
-    ) {
-      about {
-        id
+    }
+  }
+`;
+
+const UPDATE_POLICE = gql`
+  mutation updatePolice(
+    $advertising: String!
+    $publish: String!
+    $useage: String!
+    $privacy: String!
+    $about: String!
+  ) {
+    updatePolice(data: {
+      advertising: $advertising
+      publish: $publish
+      useage: $useage
+      privacy: $privacy
+      about: $about
+    }) {
+      data {
+        attributes {
+          advertising
+          publish
+          useage
+          privacy
+          about
+        }
       }
     }
   }
 `;
 
-const EditDataPage = ({ params }) => {
+const EditDataPage = () => {
     const router = useRouter();
     const { getToken } = useAuth();
     const token = getToken();
-    const id = "618a41e3ae446e4c9c6cd289";
 
-    const [usage, setUsage] = useState('');
+    const [advertising, setAdvertising] = useState('');
+    const [publish, setPublish] = useState('');
+    const [useage, setUseage] = useState('');
     const [privacy, setPrivacy] = useState('');
-    const [mediaCh, setMediaCh] = useState('');
-    const [vision, setVision] = useState('');
-    const [description, setDescription] = useState('');
-    const [mission, setMission] = useState('');
+    const [about, setAbout] = useState('');
     const [errorMessage, setErrorMessage] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    const { loading, error, data } = useQuery(GET_DATA, {
-        variables: { id },
-    });
+    const { loading, error, data } = useQuery(GET_POLICE);
 
-    const [updateData] = useMutation(UPDATE_DATA, {
+    const [updatePolice] = useMutation(UPDATE_POLICE, {
         context: {
             headers: {
                 authorization: token ? `Bearer ${token}` : '',
@@ -85,13 +83,12 @@ const EditDataPage = ({ params }) => {
 
     useEffect(() => {
         if (!loading && data) {
-            const item = data.about;
-            setUsage(item.usage);
+            const item = data.police.data.attributes;
+            setAdvertising(item.advertising);
+            setPublish(item.publish);
+            setUseage(item.useage);
             setPrivacy(item.privacy);
-            setMediaCh(item.mediaCh);
-            setVision(item.vision);
-            setDescription(item.description);
-            setMission(item.mission);
+            setAbout(item.about);
         }
     }, [loading, data]);
 
@@ -102,15 +99,13 @@ const EditDataPage = ({ params }) => {
         setIsLoading(true);
 
         try {
-            await updateData({
+            await updatePolice({
                 variables: {
-                    id,
-                    usage,
+                    advertising,
+                    publish,
+                    useage,
                     privacy,
-                    mediaCh,
-                    vision,
-                    description,
-                    mission,
+                    about,
                 },
             });
             setSuccessMessage("تم تعديل البيانات بنجاح");
@@ -126,22 +121,40 @@ const EditDataPage = ({ params }) => {
         <>
             <main className="head">
                 <div className="head-title">
-                    <h3 className="title">تعديل البيانات</h3>
+                    <h3 className="title">تعديل السياسات</h3>
                 </div>
                 {errorMessage && <div className="error-message">{errorMessage}</div>}
                 {successMessage && <div className="success-message">{successMessage}</div>}
                 <form className="content" onSubmit={handleSubmit}>
                     <div className="form-group" style={{ width: '100%' }}>
-                        <label>الاستخدام:</label>
+                        <label>سياسة الإعلان:</label>
                         <MdEditor
-                            value={usage}
+                            value={advertising}
                             style={{ height: '300px' }}
                             renderHTML={(text) => mdParser.render(text)}
-                            onChange={({ text }) => setUsage(text)}
+                            onChange={({ text }) => setAdvertising(text)}
                         />
                     </div>
                     <div className="form-group" style={{ width: '100%' }}>
-                        <label>الخصوصية:</label>
+                        <label>سياسة النشر:</label>
+                        <MdEditor
+                            value={publish}
+                            style={{ height: '300px' }}
+                            renderHTML={(text) => mdParser.render(text)}
+                            onChange={({ text }) => setPublish(text)}
+                        />
+                    </div>
+                    <div className="form-group" style={{ width: '100%' }}>
+                        <label>سياسة الاستخدام:</label>
+                        <MdEditor
+                            value={useage}
+                            style={{ height: '300px' }}
+                            renderHTML={(text) => mdParser.render(text)}
+                            onChange={({ text }) => setUseage(text)}
+                        />
+                    </div>
+                    <div className="form-group" style={{ width: '100%' }}>
+                        <label>سياسة الخصوصية:</label>
                         <MdEditor
                             value={privacy}
                             style={{ height: '300px' }}
@@ -150,36 +163,12 @@ const EditDataPage = ({ params }) => {
                         />
                     </div>
                     <div className="form-group" style={{ width: '100%' }}>
-                        <label>الميثاق الإعلامي:</label>
+                        <label>عن الموقع:</label>
                         <MdEditor
-                            value={mediaCh}
+                            value={about}
                             style={{ height: '300px' }}
                             renderHTML={(text) => mdParser.render(text)}
-                            onChange={({ text }) => setMediaCh(text)}
-                        />
-                    </div>
-                    <div className="form-group" style={{ width: '100%' }}>
-                        <label>الرؤية:</label>
-                        <textarea
-                            value={vision}
-                            onChange={(e) => setVision(e.target.value)}
-                            rows="4"
-                        />
-                    </div>
-                    <div className="form-group" style={{ width: '100%' }}>
-                        <label>الوصف:</label>
-                        <textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            rows="4"
-                        />
-                    </div>
-                    <div className="form-group" style={{ width: '100%' }}>
-                        <label>المهمة:</label>
-                        <textarea
-                            value={mission}
-                            onChange={(e) => setMission(e.target.value)}
-                            rows="4"
+                            onChange={({ text }) => setAbout(text)}
                         />
                     </div>
                     <button className='sub-button' type="submit" disabled={isLoading}>

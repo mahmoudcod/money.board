@@ -523,7 +523,7 @@ textarea {
 
 .date {
     position: relative;
-    bottom: 25px;
+    bottom: 10px;
     left: 15px;
     min-width: 150px;
     font-size: 13px;
