@@ -92,8 +92,13 @@
 
 .active {
     border-right: 5px solid #409FD7;
-    background-color: #3E4955;
+    background-color: #eee;
+    color: #409FD7;
 
+}
+
+.active a {
+    color: #409FD7 !important;
 }
 
 .dash-links a {
