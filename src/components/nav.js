@@ -3,6 +3,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from 'next/navigation';
 import { FaChartSimple } from "react-icons/fa6";
+import { BiCategory } from "react-icons/bi";
 import { IoSettingsOutline } from "react-icons/io5";
 import { FaUsers } from "react-icons/fa";
 import { MdOutlinePolicy } from "react-icons/md";
@@ -42,6 +43,12 @@ export default function Nave() {
                 <div className="dash-links">
                     <div className={pathname === '/dashboard/posts' ? 'dash-link active' : 'dash-link'}>
                         <Link href={'/dashboard/posts'} ><FaChartSimple className={pathname === '/dashboard/posts' ? 'icon act' : 'icon'} />مقالات </Link>
+                    </div>
+                    <div className={pathname === '/dashboard/category' ? 'dash-link active' : 'dash-link'}>
+                        <Link href={'/dashboard/category'} ><BiCategory className={pathname === '/dashboard/category' ? 'icon act' : 'icon'} />التصنيفات </Link>
+                    </div>
+                    <div className={pathname === '/dashboard/subCat' ? 'dash-link active' : 'dash-link'}>
+                        <Link href={'/dashboard/subCat'} ><BiCategory className={pathname === '/dashboard/subCat' ? 'icon act' : 'icon'} />التصنيفات الفرعية </Link>
                     </div>
                     {/* <div className={pathname === '/dashboard/figure' ? 'dash-link active' : 'dash-link'}>
                         <Link href={'/dashboard/figure'} ><RxAvatar className={pathname === '/dashboard/figure' ? 'icon act' : 'icon'} /> شخصيات </Link>
