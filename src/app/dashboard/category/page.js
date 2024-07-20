@@ -3,18 +3,18 @@ import React, { useState, useEffect } from 'react';
 import { MdKeyboardArrowLeft, MdKeyboardArrowRight } from "react-icons/md";
 import { RiDeleteBin6Line } from "react-icons/ri";
 import { useQuery, useMutation } from '@apollo/client';
-import { HiOutlineEye, HiPencil } from "react-icons/hi";
+import { HiPencil } from "react-icons/hi";
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/app/auth';
 import gql from 'graphql-tag';
-
 
 const GET_CATEGORIES = gql`
   query GetCategories($start: Int!, $limit: Int!) {
     categories(
       pagination: { start: $start, limit: $limit }
       sort: "createdAt:desc"
+      publicationState: PREVIEW
     ) {
       data {
         id
@@ -28,6 +28,7 @@ const GET_CATEGORIES = gql`
             }
           }
           createdAt
+          publishedAt
           sub_categories {
             data {
               id
@@ -67,6 +68,7 @@ export default function CategoriesPage() {
     const [token, setToken] = useState(null);
     const [isTokenLoading, setIsTokenLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState(null);
+    const [publishFilter, setPublishFilter] = useState('all'); // 'all', 'published', or 'unpublished'
     const pageSize = 10;
     const router = useRouter();
     const { getToken, refreshToken } = useAuth();
@@ -138,12 +140,12 @@ export default function CategoriesPage() {
         });
     };
 
-    if (isTokenLoading) return <div>جاري التحميل...</div>;
+    if (isTokenLoading) return null;
     if (!token) return <div>لم يتم العثور على رمز المصادقة. يرجى تسجيل الدخول مرة أخرى.</div>;
-    if (loading) return <div>جاري تحميل البيانات...</div>;
+    if (loading) return <div class="loader"></div>;
     if (error) return <div>خطأ: {error.message}</div>;
 
-    const categories = data.categories.data.map(item => ({
+    const allCategories = data?.categories.data.map(item => ({
         id: item.id,
         ...item.attributes,
         iconUrl: item.attributes.icon.data ? item.attributes.icon.data.attributes.url : null,
@@ -151,10 +153,24 @@ export default function CategoriesPage() {
             id: subCat.id,
             name: subCat.attributes.subName
         })),
-        blogCount: item.attributes.blogs.data.length
-    }));
-    const totalCount = data.categories.meta.pagination.total;
+        blogCount: item.attributes.blogs.data.length,
+        isPublished: !!item.attributes.publishedAt
+    })) || [];
+
+    const filteredCategories = allCategories.filter(category => {
+        if (publishFilter === 'all') return true;
+        if (publishFilter === 'published') return category.isPublished;
+        if (publishFilter === 'unpublished') return !category.isPublished;
+        return true;
+    });
+
+    const totalCount = filteredCategories.length;
     const totalPages = Math.ceil(totalCount / pageSize);
+
+    const paginatedCategories = filteredCategories.slice(
+        (currentPage - 1) * pageSize,
+        currentPage * pageSize
+    );
 
     const renderPagination = () => {
         const pageNumbers = [];
@@ -204,6 +220,21 @@ export default function CategoriesPage() {
 
             {errorMessage && <div className="error-message">{errorMessage}</div>}
 
+            <div className="filter-controls">
+                <select
+                    className='select-box'
+                    value={publishFilter}
+                    onChange={(e) => {
+                        setPublishFilter(e.target.value);
+                        setCurrentPage(1);
+                    }}
+                >
+                    <option value="all">جميع الفئات</option>
+                    <option value="published">الفئات المنشورة</option>
+                    <option value="unpublished">الفئات غير المنشورة</option>
+                </select>
+            </div>
+
             <table className="table">
                 <thead>
                     <tr>
@@ -212,11 +243,12 @@ export default function CategoriesPage() {
                         <th>فرعي</th>
                         <th>عدد المقالات</th>
                         <th>تاريخ الإنشاء</th>
+                        <th>الحالة</th>
                         <th>الإعدادات</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {categories.map(category => (
+                    {paginatedCategories.map(category => (
                         <tr key={category.id}>
                             <td>{category.name}</td>
                             <td>
@@ -235,9 +267,12 @@ export default function CategoriesPage() {
                             </td>
                             <td>{category.blogCount}</td>
                             <td>{formatArabicDate(category.createdAt)}</td>
+                            <td>{category.isPublished ? "منشور" : "غير منشور"}</td>
                             <td>
-                                {/* <HiOutlineEye onClick={() => router.push(`/dashboard/category/${category.id}`)} style={{ cursor: 'pointer', marginRight: '10px' }} /> */}
-                                <HiPencil onClick={() => router.push(`/dashboard/category/${category.id}`)} style={{ cursor: 'pointer', marginRight: '10px' }} />
+                                <HiPencil onClick={() => router.push(`/dashboard/category/${category.id}`)} style={{ cursor: 'pointer', marginLeft: '10px' }} />
+
+
+
                                 <RiDeleteBin6Line onClick={() => handleDeleteCategory(category.id)} className='delete' style={{ cursor: 'pointer' }} />
                             </td>
                         </tr>

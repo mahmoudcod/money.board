@@ -16,6 +16,7 @@ const GET_CATEGORY = gql`
           slug
           description
           isShow
+          publishedAt
           icon {
             data {
               attributes {
@@ -46,6 +47,7 @@ const UPDATE_CATEGORY = gql`
     $sub_categories: [ID]
     $isShow: Boolean!
     $description: String
+    $publishedAt: DateTime
   ) {
     updateCategory(
       id: $id
@@ -56,6 +58,7 @@ const UPDATE_CATEGORY = gql`
         sub_categories: $sub_categories
         isShow: $isShow
         description: $description
+        publishedAt: $publishedAt
       }
     ) {
       data {
@@ -95,6 +98,7 @@ const EditCategoryPage = ({ params }) => {
     const [description, setDescription] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
+    const [isPublished, setIsPublished] = useState(false);
 
     const { loading, error: categoryError, data } = useQuery(GET_CATEGORY, {
         variables: { id: id },
@@ -141,6 +145,7 @@ const EditCategoryPage = ({ params }) => {
             setSubCategories(category.sub_categories.data || []);
             setIsShow(category.isShow);
             setDescription(category.description || '');
+            setIsPublished(!!category.publishedAt);
             if (category.icon && category.icon.data) {
                 setIconUrl(`${category.icon.data.attributes.url}`);
             }
@@ -234,6 +239,7 @@ const EditCategoryPage = ({ params }) => {
                 sub_categories: subCategories.map(subCat => subCat.id),
                 isShow,
                 description,
+                publishedAt: isPublished ? new Date().toISOString() : null,
             };
 
             // Only include icon in the update if it's not undefined
@@ -328,6 +334,16 @@ const EditCategoryPage = ({ params }) => {
                     </label>
                 </div>
                 <div className="form-group">
+                    <label>
+                        <input
+                            type="checkbox"
+                            checked={isPublished}
+                            onChange={(e) => setIsPublished(e.target.checked)}
+                        />
+                        نشر الفئة
+                    </label>
+                </div>
+                <div className="form-group">
                     <label>الفئات الفرعية:</label>
                     <div>
                         {subCategories.map((subCat) => (
@@ -345,6 +361,7 @@ const EditCategoryPage = ({ params }) => {
                     </div>
                     <div className="add-subcategory">
                         <select
+                            className='select-box'
                             value={selectedSubCategory}
                             onChange={(e) => setSelectedSubCategory(e.target.value)}
                         >

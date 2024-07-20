@@ -204,9 +204,10 @@ const AddUser = () => {
                     <div className="form-group">
                         <label>الدور:</label>
                         <select
+
                             value={role}
                             onChange={(e) => setRole(e.target.value)}
-                            className={roleError ? 'has-error' : ''}
+                            className={roleError ? 'has-error select-box ' : 'select-box '}
                         >
                             <option value="">اختر دور</option>
                             {roles.map((role) => (

@@ -7,7 +7,6 @@ export default function DashboardLayout({ children }) {
         <div className="container">
             <Nave />
             <ProtectedRoute>
-
                 {children}
             </ProtectedRoute>
         </div>

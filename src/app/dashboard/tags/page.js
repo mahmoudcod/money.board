@@ -12,12 +12,14 @@ const GET_TAGS = gql`
     tags(
       pagination: { start: $start, limit: $limit }
       sort: ["updatedAt:desc"]
+      publicationState: PREVIEW
     ) {
       data {
         id
         attributes {
           name
           createdAt
+          publishedAt
         }
       }
       meta {
@@ -46,6 +48,7 @@ export default function Tags() {
     const [successMessage, setSuccessMessage] = useState(null);
     const [token, setToken] = useState(null);
     const [isTokenLoading, setIsTokenLoading] = useState(true);
+    const [publishFilter, setPublishFilter] = useState('all');
     const pageSize = 10;
     const { getToken, refreshToken } = useAuth();
 
@@ -108,9 +111,9 @@ export default function Tags() {
         }
     };
 
-    if (isTokenLoading) return <div>Loading authentication...</div>;
+    if (isTokenLoading) return null;
     if (!token) return <div>No authentication token available. Please log in again.</div>;
-    if (loading) return <div>Loading data...</div>;
+    if (loading) return <div class="loader"></div>;
     if (error) {
         return (
             <div className="error-message">
@@ -123,19 +126,33 @@ export default function Tags() {
         return <div>No data available</div>;
     }
 
-    const tags = data.tags.data.map(tag => ({
+    const allTags = data.tags.data.map(tag => ({
         id: tag.id,
-        ...tag.attributes
+        ...tag.attributes,
+        isPublished: !!tag.attributes.publishedAt
     }));
-    const totalCount = data.tags.meta.pagination.total;
+
+    const filteredTags = allTags.filter(tag => {
+        if (publishFilter === 'all') return true;
+        if (publishFilter === 'published') return tag.isPublished;
+        if (publishFilter === 'unpublished') return !tag.isPublished;
+        return true;
+    });
+
+    const totalCount = filteredTags.length;
     const totalPages = Math.ceil(totalCount / pageSize);
 
+    const paginatedTags = filteredTags.slice(
+        (currentPage - 1) * pageSize,
+        currentPage * pageSize
+    );
+
     const nextPage = () => {
-        setCurrentPage(currentPage + 1);
+        setCurrentPage(prev => Math.min(prev + 1, totalPages));
     };
 
     const prevPage = () => {
-        setCurrentPage(currentPage - 1);
+        setCurrentPage(prev => Math.max(prev - 1, 1));
     };
 
     const setPage = (page) => {
@@ -151,10 +168,10 @@ export default function Tags() {
     };
 
     const selectAllTags = () => {
-        if (selectedTags.length === tags.length) {
+        if (selectedTags.length === paginatedTags.length) {
             setSelectedTags([]);
         } else {
-            setSelectedTags(tags.map(tag => tag.id));
+            setSelectedTags(paginatedTags.map(tag => tag.id));
         }
     };
 
@@ -214,6 +231,21 @@ export default function Tags() {
                     <Link href="/dashboard/tags/new-tags" className="addButton">إضافة علامة جديدة</Link>
                 </div>
 
+                <div className="filter-controls">
+                    <select
+                        className='select-box'
+                        value={publishFilter}
+                        onChange={(e) => {
+                            setPublishFilter(e.target.value);
+                            setCurrentPage(1);
+                        }}
+                    >
+                        <option value="all">جميع العلامات</option>
+                        <option value="published">العلامات المنشورة</option>
+                        <option value="unpublished">العلامات غير المنشورة</option>
+                    </select>
+                </div>
+
                 {selectedTags.length > 0 && (
                     <button className='delete-button' onClick={deleteSelectedTags}> <MdDelete /> حذف جميع المختار </button>
                 )}
@@ -224,18 +256,20 @@ export default function Tags() {
                     <table className="table">
                         <thead>
                             <tr>
-                                <th><input type="checkbox" checked={selectedTags.length === tags.length} onChange={selectAllTags} /></th>
+                                <th><input type="checkbox" checked={selectedTags.length === paginatedTags.length} onChange={selectAllTags} /></th>
                                 <th>اسم العلامة</th>
                                 <th>تاريخ النشر</th>
+                                <th>الحالة</th>
                                 <th>الإعدادات</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {tags.map(item => (
+                            {paginatedTags.map(item => (
                                 <tr key={item.id}>
                                     <td><input type='checkbox' checked={selectedTags.includes(item.id)} onChange={() => toggleTagSelection(item.id)} /></td>
                                     <td>{item.name}</td>
                                     <td>{formatArabicDate(item.createdAt)}</td>
+                                    <td>{item.isPublished ? "منشور" : "غير منشور"}</td>
                                     <td>
                                         <Link href={`/dashboard/tags/${item.id}`}>
                                             <MdOutlineEdit style={{ color: "#4D4F5C" }} />

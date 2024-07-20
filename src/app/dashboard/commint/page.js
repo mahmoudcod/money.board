@@ -126,9 +126,9 @@ export default function Comments() {
         });
     };
 
-    if (isTokenLoading) return <div>جاري التحميل...</div>;
+    if (isTokenLoading) return null;
     if (!token) return <div>لم يتم العثور على رمز المصادقة. يرجى تسجيل الدخول مرة أخرى.</div>;
-    if (loading) return <div>جاري تحميل البيانات...</div>;
+    if (loading) return <div class="loader"></div>;
     if (error) return <div>خطأ: {error.message}</div>;
 
     const comments = data.comments.data.map(item => ({
@@ -203,7 +203,7 @@ export default function Comments() {
                             <td>{comment.comment.substring(0, 50)}...</td>
                             <td>{formatArabicDate(comment.createdAt)}</td>
                             <td>
-                                <HiOutlineEye onClick={() => router.push(`/dashboard/commint/${comment.id}`)} style={{ cursor: 'pointer', marginRight: '10px' }} />
+                                <HiOutlineEye onClick={() => router.push(`/dashboard/commint/${comment.id}`)} style={{ cursor: 'pointer', marginLeft: '10px' }} />
                                 <RiDeleteBin6Line onClick={() => handleDeleteComment(comment.id)} className='delete' style={{ cursor: 'pointer' }} />
                             </td>
                         </tr>

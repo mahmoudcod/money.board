@@ -10,6 +10,7 @@ import { MdOutlinePolicy } from "react-icons/md";
 import { RxAvatar } from "react-icons/rx";
 import { BsTags } from "react-icons/bs";
 import { TbSpeakerphone } from "react-icons/tb";
+import { RiFolderImageLine } from "react-icons/ri";
 import { LuMessagesSquare } from "react-icons/lu";
 import { IoIosLogOut, IoIosMenu } from "react-icons/io";
 import { useAuth } from "@/app/auth";
@@ -68,9 +69,9 @@ export default function Nave() {
                     {/* <div className={pathname === '/dashboard/ads' ? 'dash-link active' : 'dash-link'}>
                         <Link href={'/dashboard/ads'} ><TbSpeakerphone className={pathname === '/dashboard/ads' ? 'icon act' : 'icon'} />  طلبات الاعلانات  </Link>
                     </div> */}
-                    {/* <div className={pathname === '/dashboard/images' ? 'dash-link active' : 'dash-link'}>
+                    <div className={pathname === '/dashboard/images' ? 'dash-link active' : 'dash-link'}>
                         <Link href={'/dashboard/images'} ><RiFolderImageLine className={pathname === '/dashboard/images' ? 'icon act' : 'icon'} />   مكتبة الصور  </Link>
-                    </div> */}
+                    </div>
                     <div className={pathname === '/dashboard/policy' ? 'dash-link active' : 'dash-link'}>
                         <Link href={'/dashboard/policy'} ><MdOutlinePolicy className={pathname === '/dashboard/policy' ? 'icon act' : 'icon'} />    السياسات  </Link>
                     </div>

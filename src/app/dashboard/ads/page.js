@@ -97,7 +97,7 @@ export default function Advertisements() {
         }
     };
 
-    if (loading) return null;
+    if (loading) return <div class="loader"></div>;
     if (error) {
         return (
             <div className="error-message">

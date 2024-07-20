@@ -443,7 +443,7 @@ const AddPost = () => {
                         )}
                     </div>
                     {/* Published Status */}
-                    <div className="form-group">
+                    {/* <div className="form-group">
                         <label>حالة المقالة:</label>
                         <div>
                             <input
@@ -465,7 +465,7 @@ const AddPost = () => {
                             />
                             <label htmlFor="published">نشر</label>
                         </div>
-                    </div>
+                    </div> */}
                     {/* Author */}
                     <div className="form-group">
                         <label>الكاتب:</label>

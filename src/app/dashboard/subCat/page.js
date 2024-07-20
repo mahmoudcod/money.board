@@ -14,6 +14,7 @@ const GET_SUBCATEGORIES = gql`
     subCategories(
       pagination: { start: $start, limit: $limit }
       sort: "createdAt:desc"
+      publicationState: PREVIEW
     ) {
       data {
         id
@@ -22,6 +23,7 @@ const GET_SUBCATEGORIES = gql`
           slug
           description
           createdAt
+          publishedAt
         }
       }
       meta {
@@ -48,6 +50,7 @@ export default function SubCategoriesPage() {
     const [token, setToken] = useState(null);
     const [isTokenLoading, setIsTokenLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState(null);
+    const [publishFilter, setPublishFilter] = useState('all');
     const pageSize = 10;
     const router = useRouter();
     const { getToken, refreshToken } = useAuth();
@@ -119,17 +122,31 @@ export default function SubCategoriesPage() {
         });
     };
 
-    if (isTokenLoading) return <div>جاري التحميل...</div>;
+    if (isTokenLoading) return null;
     if (!token) return <div>لم يتم العثور على رمز المصادقة. يرجى تسجيل الدخول مرة أخرى.</div>;
-    if (loading) return <div>جاري تحميل البيانات...</div>;
+    if (loading) return <div class="loader"></div>;
     if (error) return <div>خطأ: {error.message}</div>;
 
-    const subCategories = data.subCategories.data.map(item => ({
+    const allSubCategories = data.subCategories.data.map(item => ({
         id: item.id,
-        ...item.attributes
+        ...item.attributes,
+        isPublished: !!item.attributes.publishedAt
     }));
-    const totalCount = data.subCategories.meta.pagination.total;
+
+    const filteredSubCategories = allSubCategories.filter(subCategory => {
+        if (publishFilter === 'all') return true;
+        if (publishFilter === 'published') return subCategory.isPublished;
+        if (publishFilter === 'unpublished') return !subCategory.isPublished;
+        return true;
+    });
+
+    const totalCount = filteredSubCategories.length;
     const totalPages = Math.ceil(totalCount / pageSize);
+
+    const paginatedSubCategories = filteredSubCategories.slice(
+        (currentPage - 1) * pageSize,
+        currentPage * pageSize
+    );
 
     const renderPagination = () => {
         const pageNumbers = [];
@@ -179,6 +196,21 @@ export default function SubCategoriesPage() {
 
             {errorMessage && <div className="error-message">{errorMessage}</div>}
 
+            <div className="filter-controls">
+                <select
+                    className='select-box'
+                    value={publishFilter}
+                    onChange={(e) => {
+                        setPublishFilter(e.target.value);
+                        setCurrentPage(1);
+                    }}
+                >
+                    <option value="all">جميع الفئات الفرعية</option>
+                    <option value="published">الفئات الفرعية المنشورة</option>
+                    <option value="unpublished">الفئات الفرعية غير المنشورة</option>
+                </select>
+            </div>
+
             <table className="table">
                 <thead>
                     <tr>
@@ -186,18 +218,20 @@ export default function SubCategoriesPage() {
                         <th>(slug)</th>
                         <th>الوصف</th>
                         <th>تاريخ الإنشاء</th>
+                        <th>الحالة</th>
                         <th>الإعدادات</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {subCategories.map(subCategory => (
+                    {paginatedSubCategories.map(subCategory => (
                         <tr key={subCategory.id}>
                             <td>{subCategory.subName}</td>
                             <td>{subCategory.slug}</td>
                             <td>{subCategory.description}</td>
                             <td>{formatArabicDate(subCategory.createdAt)}</td>
+                            <td>{subCategory.isPublished ? "منشور" : "غير منشور"}</td>
                             <td>
-                                <HiPencil onClick={() => router.push(`/dashboard/subCat/${subCategory.id}`)} style={{ cursor: 'pointer', marginRight: '10px' }} />
+                                <HiPencil onClick={() => router.push(`/dashboard/subCat/${subCategory.id}`)} style={{ cursor: 'pointer', marginLeft: '10px' }} />
                                 <RiDeleteBin6Line onClick={() => handleDeleteSubCategory(subCategory.id)} className='delete' style={{ cursor: 'pointer' }} />
                             </td>
                         </tr>

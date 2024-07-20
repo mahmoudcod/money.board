@@ -4,18 +4,55 @@
     width: 100%;
 }
 
+/* HTML: <div class="loader"></div> */
+.loader {
+    width: 4%;
+    height: 4%;
+    display: flex;
+    position: absolute;
+    justify-content: center;
+    top: 50%;
+    right: 60%;
+    align-items: center;
+    aspect-ratio: 0.5;
+    --c: no-repeat linear-gradient(#0280cd 0 0);
+    background:
+        var(--c) 0% 100%,
+        var(--c) 50% 100%,
+        var(--c) 100% 100%;
+    background-size: 20% 65%;
+    animation: l5 1s infinite linear;
+}
+
+@keyframes l5 {
+    20% {
+        background-position: 0% 50%, 50% 100%, 100% 100%
+    }
+
+    40% {
+        background-position: 0% 0%, 50% 50%, 100% 100%
+    }
+
+    60% {
+        background-position: 0% 100%, 50% 0%, 100% 50%
+    }
+
+    80% {
+        background-position: 0% 100%, 50% 100%, 100% 0%
+    }
+}
+
 .dashboard {
     display: flex;
 }
 
 .dashboard-nav {
     width: 250px;
-    height: 822px;
     position: fixed;
     right: -250px;
     transition: right 0.3s ease;
     background-color: #0280cd;
-    border-radius: 0 0 15px 15px;
+    border-radius: 15px 0 0px 15px;
     overflow: auto;
 }
 
@@ -147,6 +184,7 @@
     border-radius: 15px;
 }
 
+
 .head .title {
     font-size: 26px;
     font-weight: 700;
@@ -154,11 +192,13 @@
 }
 
 
-.filter-container {
-    display: flex;
-    align-items: center;
-    margin-bottom: 1rem;
-}
+/* .filter-container {
+    border: 1px solid #E8E9EC;
+    color: #465260;
+    padding: 10px;
+    margin: 5px;
+    border-radius: 4px;
+} */
 
 .filter-icon {
     padding: 5px;

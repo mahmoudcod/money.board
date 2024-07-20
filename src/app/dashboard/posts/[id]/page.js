@@ -1,10 +1,9 @@
 'use client'
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
-import { FiPlus, FiMinus } from 'react-icons/fi';
-import dynamic from 'next/dynamic';
+import { FiPlus, FiMinus, FiX } from 'react-icons/fi';
 import { useAuth } from '@/app/auth';
 import MarkdownIt from 'markdown-it';
 import MdEditor from 'react-markdown-editor-lite';
@@ -13,68 +12,112 @@ import 'react-markdown-editor-lite/lib/index.css';
 const mdParser = new MarkdownIt();
 
 const GET_POST = gql`
-  query getPost($id: ID!) {
-    post(id: $id) {
-      id
-      title
-      category
-      subCategory
-      body
-      featureImage {
+  query getBlog($id: ID!) {
+    blog(id: $id) {
+      data {
         id
-        url
+        attributes {
+          title
+          categories {
+            data {
+              id
+              attributes {
+                name
+              }
+            }
+          }
+          blog
+          cover {
+            data {
+              id
+              attributes {
+                url
+              }
+            }
+          }
+          slug
+          tags {
+            data {
+              id
+              attributes {
+                name
+              }
+            }
+          }
+          description
+          publishedAt
+        }
       }
-      slug
-      tags {
-        id
-        name
-      }
-      excerpt
-      published
     }
   }
 `;
 
-const GetTags = gql`
+const GET_CATEGORIES = gql`
+  query getCategories {
+    categories {
+      data {
+        id
+        attributes {
+          name
+          slug
+          sub_categories {
+            data {
+              id
+              attributes {
+                subName
+                slug
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+const GET_TAGS = gql`
   query getTags {
     tags {
-      id
-      name
+      data {
+        id
+        attributes {
+          name
+        }
+      }
     }
   }
 `;
 
 const UPDATE_POST = gql`
-  mutation updatePost(
+  mutation updateBlog(
     $id: ID!
     $title: String!
-    $category: ENUM_POST_CATEGORY!
-    $subCategory: ENUM_POST_SUBCATEGORY!
-    $body: String!
-    $featureImage: ID
+    $categories: [ID]!
+    $blog: String!
+    $cover: ID
     $slug: String!
     $tags: [ID]
-    $excerpt: String!
-    $published: Boolean
+    $description: String!
+    $publishedAt: DateTime
   ) {
-    updatePost(
-      input: {
-        where: { id: $id }
-        data: {
-          title: $title
-          category: $category
-          subCategory: $subCategory
-          body: $body
-          featureImage: $featureImage
-          slug: $slug
-          tags: $tags
-          excerpt: $excerpt
-          published: $published
-        }
-      }
-    ) {
-      post {
+    updateBlog(id: $id, data: {
+      title: $title
+      categories: $categories
+      blog: $blog
+      cover: $cover
+      slug: $slug
+      tags: $tags
+      description: $description
+      publishedAt: $publishedAt
+    }) {
+      data {
         id
+        attributes {
+          title
+          slug
+          description
+          publishedAt
+        }
       }
     }
   }
@@ -86,6 +129,21 @@ const EditPostPage = ({ params }) => {
     const token = getToken();
     const id = params.id;
 
+    const [title, setTitle] = useState('');
+    const [body, setBody] = useState('');
+    const [featureImage, setFeatureImage] = useState(null);
+    const [imageUrl, setImageUrl] = useState('');
+    const [slug, setSlug] = useState('');
+    const [excerpt, setExcerpt] = useState('');
+    const [published, setPublished] = useState(false);
+    const [selectedTags, setSelectedTags] = useState([]);
+    const [selectedCategories, setSelectedCategories] = useState([]);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [hoveredCategory, setHoveredCategory] = useState(null);
+    const dropdownRef = useRef(null);
+
     const { loading, error: postError, data } = useQuery(GET_POST, {
         variables: { id: id },
         onError: (error) => {
@@ -94,19 +152,8 @@ const EditPostPage = ({ params }) => {
         },
     });
 
-    const { loading: loadingTags, data: tagsData } = useQuery(GetTags);
-
-    const [title, setTitle] = useState('');
-    const [category, setCategory] = useState('');
-    const [body, setBody] = useState('');
-    const [featureImage, setFeatureImage] = useState(null);
-    const [imageUrl, setImageUrl] = useState('');
-    const [slug, setSlug] = useState('');
-    const [excerpt, setExcerpt] = useState('');
-    const [published, setPublished] = useState(false);
-    const [selectedTags, setSelectedTags] = useState([]);
-    const [errorMessage, setErrorMessage] = useState('');
-    const [successMessage, setSuccessMessage] = useState('');
+    const { loading: loadingCategories, data: categoriesData, error: categoriesError } = useQuery(GET_CATEGORIES);
+    const { loading: loadingTags, data: tagsData } = useQuery(GET_TAGS);
 
     const [updatePost, { error: updateError }] = useMutation(UPDATE_POST, {
         context: {
@@ -131,20 +178,36 @@ const EditPostPage = ({ params }) => {
     });
 
     useEffect(() => {
-        if (!loading && data) {
-            const post = data.post;
+        if (!loading && data && data.blog && data.blog.data) {
+            const post = data.blog.data.attributes;
             setTitle(post.title || '');
-            setCategory(post.category || '');
-            setBody(post.body || '');
+            setBody(post.blog || '');
             setSlug(post.slug || '');
-            setExcerpt(post.excerpt || '');
-            setPublished(post.published || false);
-            setSelectedTags(post.tags || []);
-            if (post.featureImage) {
-                setImageUrl(`https://money-api.ektesad.com/${post.featureImage.url}`);
+            setExcerpt(post.description || '');
+            setPublished(!!post.publishedAt);
+            setSelectedTags(post.tags?.data || []);
+            setSelectedCategories(post.categories?.data?.map(cat => ({
+                categoryId: cat.id,
+                subcategoryId: null  // You might need to adjust this if you have subcategory data
+            })) || []);
+            if (post.cover && post.cover.data) {
+                setImageUrl(post.cover.data.attributes.url);
             }
         }
     }, [loading, data]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setShowDropdown(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     const handleEditorChange = ({ text }) => {
         setBody(text);
@@ -171,17 +234,42 @@ const EditPostPage = ({ params }) => {
         reader.readAsDataURL(file);
     };
 
+    const handleCategorySelect = (categoryId, subcategoryId = null) => {
+        setSelectedCategories(prev => {
+            const newSelection = { categoryId, subcategoryId };
+            const exists = prev.some(item =>
+                item.categoryId === categoryId && item.subcategoryId === subcategoryId
+            );
+
+            if (exists) {
+                return prev.filter(item =>
+                    !(item.categoryId === categoryId && item.subcategoryId === subcategoryId)
+                );
+            } else {
+                return [...prev, newSelection];
+            }
+        });
+    };
+
+    const removeSelection = (categoryId, subcategoryId = null) => {
+        setSelectedCategories(prev =>
+            prev.filter(item =>
+                !(item.categoryId === categoryId && item.subcategoryId === subcategoryId)
+            )
+        );
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            let featureImageId = null;
+            let coverData = null;
 
-            // Check if there's a new image to upload
             if (featureImage) {
+                // New image selected, upload it
                 const formData = new FormData();
                 formData.append('files', featureImage);
 
-                const response = await fetch('https://money-api.ektesad.com/upload', {
+                const response = await fetch('https://money-api.ektesad.com/api/upload', {
                     method: 'POST',
                     headers: {
                         authorization: `Bearer ${token}`,
@@ -190,26 +278,26 @@ const EditPostPage = ({ params }) => {
                 });
 
                 const res = await response.json();
-                featureImageId = res[0].id;
-            } else if (imageUrl) {
-                // If there's no new image but there's an existing image URL, use its ID
-                // Extract the image ID from the URL
-                const imageIdMatch = imageUrl.match(/\/(\d+)\/?$/);
-                featureImageId = imageIdMatch ? imageIdMatch[1] : null;
+                coverData = res[0].id;
+            } else if (imageUrl && !imageUrl.startsWith('data:')) {
+                // Existing image, keep it as is
+                coverData = data.blog.data.attributes.cover.data.id;
             }
+            // If imageUrl is empty or starts with 'data:', it means the user has removed the image or the upload failed
+
+            const formattedCategories = selectedCategories.map(item => item.categoryId);
 
             await updatePost({
                 variables: {
                     id,
                     title,
-                    category,
-                    subCategory: 'items',
-                    body,
-                    featureImage: featureImageId,
+                    categories: formattedCategories,
+                    blog: body,
+                    cover: coverData,
                     slug,
                     tags: selectedTags.map((tag) => tag.id),
-                    excerpt,
-                    published,
+                    description: excerpt,
+                    publishedAt: published ? new Date().toISOString() : null,
                 },
             });
 
@@ -224,10 +312,10 @@ const EditPostPage = ({ params }) => {
             setErrorMessage('حدث خطأ أثناء تحديث المقالة.');
         }
     };
-
     const removeTag = (tagId) => {
         setSelectedTags((prevTags) => prevTags.filter((tag) => tag.id !== tagId));
     };
+
     return (
         <>
             <main className="head">
@@ -245,9 +333,7 @@ const EditPostPage = ({ params }) => {
                             onDrop={handleImageDrop}
                         >
                             {imageUrl ? (
-                                <>
-                                    <img src={imageUrl} alt="Feature" style={{ maxWidth: '100%', maxHeight: '200px' }} />
-                                </>
+                                <img src={imageUrl} alt="Feature" style={{ maxWidth: '100%', maxHeight: '200px' }} />
                             ) : (
                                 <label htmlFor="file-input" style={{ cursor: 'pointer' }}>
                                     <input
@@ -261,106 +347,155 @@ const EditPostPage = ({ params }) => {
                                     <p>اسحب الملف واسقطة في هذه المساحة او في المتصفح لرفعة</p>
                                 </label>
                             )}
-                            <input
-                                type="file"
-                                onChange={handleInputChange}
-                                accept="image/*"
-                                className="file-input"
-                            />
                         </div>
-
-                        {imageUrl ? (
-                            <button
-                                type="button"
-                                className="delete-image-button"
-                                onClick={() => {
-                                    setFeatureImage(null);
-                                    setImageUrl('');
-                                }}
-                            >
-                                حذف الصورة
-                            </button>
-                        ) : null}
                     </div>
                     <div className="form-group">
                         <label>اسم المقالة:</label>
-                        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} />
+                        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required />
                     </div>
                     <div className="form-group">
-                        <div className="slug-andCat">
-                            <div className="form-group">
-                                <label>الslug:</label>
-                                <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} />
-                            </div>
-                            <div className="form-group">
-                                <label>القسم:</label>
-                                <select
-                                    className="select-box"
-                                    value={category}
-                                    onChange={(e) => setCategory(e.target.value)}
-                                >
-                                    <option value="">اختر القسم</option>
-                                    <option value="news">أخبار</option>
-                                    <option value="event">أحداث</option>
-                                    <option value="success">نجاح</option>
-                                    <option value="opinion">رأي</option>
-                                    <option value="investment">استثمار</option>
-                                    <option value="culture">ثقافة</option>
-                                    <option value="family">عائلة</option>
-                                    <option value="saving">توفير</option>
-                                    <option value="economy">اقتصاد</option>
-                                    <option value="spending">إنفاق</option>
-                                    <option value="banks">بنوك</option>
-                                    <option value="jobs">وظائف</option>
-                                    <option value="woman">المرأة</option>
-                                    <option value="health">صحة</option>
-                                    <option value="career">مسار وظيفي</option>
-                                    <option value="summary">ملخص</option>
-                                    <option value="incomes">الدخل</option>
-                                    <option value="ideas">أفكار</option>
-                                    <option value="entrepreneurship">ريادة الأعمال</option>
-                                </select>
-                            </div>
-                        </div>
+                        <label>الslug:</label>
+                        <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} required />
                     </div>
                     <div className="form-group">
-                        <div className="slug-andCat">
-                            <div className="form-group">
-                                <label>حالة المقالة:</label>
-                                <div>
-                                    <input
-                                        type="radio"
-                                        id="draft"
-                                        name="published"
-                                        value="draft"
-                                        checked={!published}
-                                        onChange={() => setPublished(false)}
-                                    />
-                                    <label htmlFor="draft">مسودة</label>
-                                    <input
-                                        type="radio"
-                                        id="published"
-                                        name="published"
-                                        value="published"
-                                        checked={published}
-                                        onChange={() => setPublished(true)}
-                                    />
-                                    <label htmlFor="published">نشر</label>
+                        <label>الأقسام:</label>
+                        {loadingCategories ? (
+                            <p>جاري تحميل الأقسام...</p>
+                        ) : categoriesError ? (
+                            <p>خطأ في جلب الأقسام: {categoriesError.message}</p>
+                        ) : (
+                            <div>
+                                <div ref={dropdownRef} style={{ position: 'relative' }}>
+                                    <div
+                                        className="custom-select"
+                                        onClick={() => setShowDropdown(!showDropdown)}
+                                        style={{
+                                            border: '1px solid #ccc',
+                                            padding: '10px',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        اختر الأقسام
+                                    </div>
+                                    {showDropdown && (
+                                        <div
+                                            style={{
+                                                position: 'absolute',
+                                                top: '100%',
+                                                left: 0,
+                                                right: 0,
+                                                backgroundColor: 'white',
+                                                border: '1px solid #ccc',
+                                                zIndex: 1000,
+                                                maxHeight: '300px',
+                                                overflowY: 'auto'
+                                            }}
+                                        >
+                                            {categoriesData.categories.data.map((cat) => (
+                                                <div
+                                                    key={cat.id}
+                                                    onMouseEnter={() => setHoveredCategory(cat.id)}
+                                                    onMouseLeave={() => setHoveredCategory(null)}
+                                                    style={{
+                                                        padding: '10px',
+                                                        cursor: 'pointer',
+                                                        backgroundColor: hoveredCategory === cat.id ? '#f0f0f0' : 'white'
+                                                    }}
+                                                >
+                                                    <div
+                                                        onClick={() => handleCategorySelect(cat.id)}
+                                                        style={{
+                                                            fontWeight: selectedCategories.some(item => item.categoryId === cat.id && !item.subcategoryId) ? 'bold' : 'normal'
+                                                        }}
+                                                    >
+                                                        {cat.attributes.name}
+                                                    </div>
+                                                    {(hoveredCategory === cat.id || selectedCategories.some(item => item.categoryId === cat.id)) &&
+                                                        cat.attributes.sub_categories.data.length > 0 && (
+                                                            <div style={{ marginLeft: '20px', fontSize: '0.9em', color: '#666' }}>
+                                                                {cat.attributes.sub_categories.data.map(subcat => (
+                                                                    <div
+                                                                        key={subcat.id}
+                                                                        onClick={() => handleCategorySelect(cat.id, subcat.id)}
+                                                                        style={{
+                                                                            fontWeight: selectedCategories.some(item => item.categoryId === cat.id && item.subcategoryId === subcat.id) ? 'bold' : 'normal'
+                                                                        }}
+                                                                    >
+                                                                        {subcat.attributes.subName}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                <div style={{ marginTop: '10px' }}>
+                                    {selectedCategories.map((item, index) => {
+                                        const category = categoriesData.categories.data.find(cat => cat.id === item.categoryId);
+                                        const subcategory = item.subcategoryId
+                                            ? category.attributes.sub_categories.data.find(subcat => subcat.id === item.subcategoryId)
+                                            : null;
+                                        return (
+                                            <span
+                                                key={index}
+                                                style={{
+                                                    backgroundColor: '#e0e0e0',
+                                                    padding: '5px 10px',
+                                                    margin: '0 5px 5px 0',
+                                                    borderRadius: '15px',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center'
+                                                }}
+                                            >
+                                                {category.attributes.name}
+                                                {subcategory && ` > ${subcategory.attributes.subName}`}
+                                                <FiX
+                                                    onClick={() => removeSelection(item.categoryId, item.subcategoryId)}
+                                                    style={{ marginLeft: '5px', cursor: 'pointer' }}
+                                                />
+                                            </span>
+                                        );
+                                    })}
                                 </div>
                             </div>
+                        )}
+                    </div>
+                    <div className="form-group">
+                        <label>حالة المقالة:</label>
+                        <div>
+                            <input
+                                type="radio"
+                                id="draft"
+                                name="published"
+                                value="draft"
+                                checked={!published}
+                                onChange={() => setPublished(false)}
+                            />
+                            <label htmlFor="draft">مسودة</label>
+                            <input
+                                type="radio"
+                                id="published"
+                                name="published"
+                                value="published"
+                                checked={published}
+                                onChange={() => setPublished(true)}
+                            />
+                            <label htmlFor="published">نشر</label>
                         </div>
                     </div>
                     <div className="form-group">
-                        <label>مقطف عن المقالة:</label>
+                        <label>مقتطف عن المقالة:</label>
                         <textarea
                             style={{ padding: '25px 10px' }}
-                            type="text"
                             value={excerpt}
                             onChange={(e) => setExcerpt(e.target.value)}
+                            required
                         />
                     </div>
                     <div className="form-group">
-                        <label>محتوي المقالة:</label>
+                        <label>محتوى المقالة:</label>
                         <MdEditor
                             value={body}
                             style={{ height: '300px' }}
@@ -370,37 +505,39 @@ const EditPostPage = ({ params }) => {
                     </div>
                     <div className="form-group">
                         <label>الكلمات الدليلية:</label>
-                        {loadingTags ? null : (
+                        {loadingTags ? (
+                            null
+                        ) : (
                             <select
                                 className="select-box"
                                 onChange={(e) => {
                                     const selectedTagId = e.target.value;
-                                    const selectedTag = tagsData.tags.find((tag) => tag.id === selectedTagId);
-                                    setSelectedTags((prevTags) => [...prevTags, selectedTag]);
+                                    const selectedTag = tagsData.tags.data.find((tag) => tag.id === selectedTagId);
+                                    if (selectedTag && !selectedTags.some(tag => tag.id === selectedTag.id)) {
+                                        setSelectedTags((prevTags) => [...prevTags, selectedTag]);
+                                    }
                                 }}
                             >
                                 <option value="">اختر كلمة دليلية</option>
-                                {tagsData.tags.map((tag) => (
+                                {tagsData.tags.data.map((tag) => (
                                     <option key={tag.id} value={tag.id}>
-                                        {tag.name}
+                                        {tag.attributes.name}
                                     </option>
                                 ))}
                             </select>
                         )}
-                        <div>
-                            {selectedTags.map((tag) => (
-                                <span key={tag.id} className="tag">
-                                    {tag.name}
-                                    <button
-                                        className="delete-tag-button"
-                                        type="button"
-                                        onClick={() => removeTag(tag.id)}
-                                    >
-                                        <FiMinus />
-                                    </button>
-                                </span>
-                            ))}
-                        </div>
+                        {selectedTags.length > 0 && (
+                            <div>
+                                {selectedTags.map((tag) => (
+                                    <span className='tag' key={tag.id}>
+                                        {tag.attributes.name}
+                                        <button className='delete-tag-button' type="button" onClick={() => removeTag(tag.id)}>
+                                            <FiMinus />
+                                        </button>
+                                    </span>
+                                ))}
+                            </div>
+                        )}
                     </div>
                     <button className="sub-button" type="submit">
                         حفظ التغييرات

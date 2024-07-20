@@ -262,6 +262,7 @@ const CreateCategoryPage = () => {
                     </div>
                     <div className="add-subcategory">
                         <select
+                            className='select-box'
                             value={selectedSubCategory}
                             onChange={(e) => setSelectedSubCategory(e.target.value)}
                         >

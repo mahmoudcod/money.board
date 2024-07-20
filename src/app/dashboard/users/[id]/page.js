@@ -275,7 +275,9 @@ const EditUserPage = ({ params }) => {
                     </div>
                     <div className="form-group">
                         <label>الدور:</label>
-                        <select value={role} onChange={(e) => setRole(e.target.value)}>
+                        <select
+                            className='select-box'
+                            value={role} onChange={(e) => setRole(e.target.value)}>
                             <option value="">اختر الدور</option>
                             {roles.map((role) => (
                                 <option key={role.id} value={role.id}>

@@ -119,9 +119,9 @@ export default function ContactQueries() {
         });
     };
 
-    if (isTokenLoading) return <div>جاري التحميل...</div>;
+    if (isTokenLoading) return null;
     if (!token) return <div>لم يتم العثور على رمز المصادقة. يرجى تسجيل الدخول مرة أخرى.</div>;
-    if (loading) return <div>جاري تحميل البيانات...</div>;
+    if (loading) return <div class="loader"></div>;
     if (error) return <div>خطأ: {error.message}</div>;
 
     const queries = data.contactUses.data.map(item => ({
@@ -194,7 +194,7 @@ export default function ContactQueries() {
                             <td>{query.message.substring(0, 50)}...</td>
                             <td>{formatArabicDate(query.createdAt)}</td>
                             <td>
-                                <HiOutlineEye onClick={() => router.push(`/dashboard/contact/${query.id}`)} style={{ cursor: 'pointer', marginRight: '10px' }} />
+                                <HiOutlineEye onClick={() => router.push(`/dashboard/contact/${query.id}`)} style={{ cursor: 'pointer', marginLeft: '10px' }} />
                                 <RiDeleteBin6Line onClick={() => handleDeleteQuery(query.id)} className='delete' style={{ cursor: 'pointer' }} />
                             </td>
                         </tr>

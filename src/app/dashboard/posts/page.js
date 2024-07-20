@@ -9,12 +9,12 @@ import gql from 'graphql-tag';
 import Link from 'next/link';
 
 const GET_POSTS = gql`
-  query GetPosts($limitForPosts: Int!, $searchTerm: String, $start: Int!, $publicationState: PublicationState) {
+  query GetPosts($start: Int!, $limit: Int!, $searchTerm: String) {
     blogs(
       sort: "updatedAt:desc"
-      pagination: { limit: $limitForPosts, start: $start }
+      pagination: { start: $start, limit: $limit }
       filters: { title: { contains: $searchTerm } }
-      publicationState: $publicationState
+      publicationState: PREVIEW
     ) {
       data {
         id
@@ -56,26 +56,24 @@ export default function Post() {
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedPosts, setSelectedPosts] = useState([]);
     const [deleteSuccess, setDeleteSuccess] = useState(false);
-    const pageSize = 10;
-    const { getToken } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
-    const [filterStatus, setFilterStatus] = useState('PREVIEW');
+    const [publishFilter, setPublishFilter] = useState('all');
     const [isSmallScreen, setSmallScreen] = useState(false);
+    const pageSize = 10;
+    const { getToken } = useAuth();
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            const isSmallScreen = window.innerWidth < 768;
-            setSmallScreen(isSmallScreen);
+            setSmallScreen(window.innerWidth < 768);
         }
     }, []);
 
     const { loading, error, data, refetch } = useQuery(GET_POSTS, {
         variables: {
             start: (currentPage - 1) * pageSize,
-            limitForPosts: pageSize,
+            limit: pageSize,
             searchTerm: searchQuery,
-            publicationState: filterStatus === 'ALL' ? undefined : filterStatus === 'PUBLISHED' ? 'LIVE' : 'PREVIEW',
         },
     });
 
@@ -85,19 +83,17 @@ export default function Post() {
         refetch({
             start: (currentPage - 1) * pageSize,
             searchTerm: searchQuery,
-            publicationState: filterStatus === 'ALL' ? undefined : filterStatus === 'PUBLISHED' ? 'LIVE' : 'PREVIEW',
         });
-    }, [currentPage, searchQuery, filterStatus]);
+    }, [currentPage, searchQuery, refetch]);
 
     const handleCheckboxChange = (postId) => {
-        const updatedSelectedPosts = selectedPosts.includes(postId)
-            ? selectedPosts.filter((id) => id !== postId)
-            : [...selectedPosts, postId];
-        setSelectedPosts(updatedSelectedPosts);
+        setSelectedPosts(prev =>
+            prev.includes(postId) ? prev.filter(id => id !== postId) : [...prev, postId]
+        );
     };
 
     const deleteSelectedPosts = async () => {
-        if (window && window.confirm('Are you sure you want to delete selected posts?')) {
+        if (window.confirm('Are you sure you want to delete selected posts?')) {
             const token = getToken();
             try {
                 await Promise.all(
@@ -106,13 +102,12 @@ export default function Post() {
                             variables: { id: postId },
                             context: {
                                 headers: {
-                                    Authorization: token ? `Bearer ${token}` : '',
+                                    Authorization: `Bearer ${token}`,
                                 },
                             },
                         })
                     )
                 );
-
                 setSelectedPosts([]);
                 setDeleteSuccess(true);
                 refetch();
@@ -124,27 +119,33 @@ export default function Post() {
 
     useEffect(() => {
         if (deleteSuccess) {
-            const timer = setTimeout(() => {
-                setDeleteSuccess(false);
-            }, 3000);
-
+            const timer = setTimeout(() => setDeleteSuccess(false), 3000);
             return () => clearTimeout(timer);
         }
     }, [deleteSuccess]);
 
-    if (loading) return null;
+    if (loading) return <div class="loader"></div>;
     if (error) return <p>Error: {error.message}</p>;
 
-    const posts = data?.blogs?.data || [];
-    const totalCount = data?.blogs?.meta?.pagination?.total || 0;
+    const allPosts = data?.blogs?.data || [];
+    const filteredPosts = allPosts.filter(post => {
+        if (publishFilter === 'all') return true;
+        if (publishFilter === 'published') return post.attributes.publishedAt;
+        if (publishFilter === 'unpublished') return !post.attributes.publishedAt;
+        return true;
+    });
+
+    const totalCount = filteredPosts.length;
     const totalPages = Math.ceil(totalCount / pageSize);
 
-    const nextPage = () => setCurrentPage((prevPage) => prevPage + 1);
-    const prevPage = () => setCurrentPage((prevPage) => prevPage - 1);
+    const paginatedPosts = filteredPosts.slice(
+        (currentPage - 1) * pageSize,
+        currentPage * pageSize
+    );
 
-    const setPage = (page) => {
-        setCurrentPage(page);
-    };
+    const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
+    const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
+    const setPage = (page) => setCurrentPage(page);
 
     const formatArabicDate = (dateString) => {
         const date = new Date(dateString);
@@ -158,14 +159,14 @@ export default function Post() {
     };
 
     const deletePost = async (postId) => {
-        if (window && window.confirm('Are you sure you want to delete this post?')) {
+        if (window.confirm('Are you sure you want to delete this post?')) {
             const token = getToken();
             try {
                 await deletePostMutation({
                     variables: { id: postId },
                     context: {
                         headers: {
-                            Authorization: token ? `Bearer ${token}` : '',
+                            Authorization: `Bearer ${token}`,
                         },
                     },
                 });
@@ -184,14 +185,6 @@ export default function Post() {
         }
     };
 
-    const handleFilterChange = (status) => {
-        setFilterStatus(status);
-        setCurrentPage(1);
-        refetch({
-            start: 0,
-            publicationState: status === 'ALL' ? undefined : status === 'PUBLISHED' ? 'LIVE' : 'PREVIEW',
-        });
-    };
     const maxPagesToShow = 5;
     const middlePage = Math.ceil(maxPagesToShow / 2);
     let startPage = currentPage <= middlePage ? 1 : currentPage - middlePage + 1;
@@ -199,10 +192,7 @@ export default function Post() {
 
     if (endPage > totalPages) {
         endPage = totalPages;
-        startPage = endPage - maxPagesToShow + 1;
-        if (startPage < 1) {
-            startPage = 1;
-        }
+        startPage = Math.max(1, endPage - maxPagesToShow + 1);
     }
 
     const pageButtons = [];
@@ -237,24 +227,18 @@ export default function Post() {
                 </div>
 
                 <div className="filter-container">
-                    <button
-                        onClick={() => handleFilterChange('ALL')}
-                        className={filterStatus === 'ALL' ? 'active-filter' : 'filter-icon'}
+                    <select
+                        className='select-box'
+                        value={publishFilter}
+                        onChange={(e) => {
+                            setPublishFilter(e.target.value);
+                            setCurrentPage(1);
+                        }}
                     >
-                        الكل
-                    </button>
-                    <button
-                        onClick={() => handleFilterChange('PUBLISHED')}
-                        className={filterStatus === 'PUBLISHED' ? 'active-filter' : 'filter-icon'}
-                    >
-                        منشور
-                    </button>
-                    <button
-                        onClick={() => handleFilterChange('DRAFT')}
-                        className={filterStatus === 'DRAFT' ? 'active-filter' : 'filter-icon'}
-                    >
-                        مسودة
-                    </button>
+                        <option value="all">جميع المقالات</option>
+                        <option value="published">المقالات المنشورة</option>
+                        <option value="unpublished">المقالات غير المنشورة</option>
+                    </select>
                 </div>
 
                 {selectedPosts.length > 0 && (
@@ -272,12 +256,12 @@ export default function Post() {
                                 <th>
                                     <input
                                         type="checkbox"
-                                        checked={selectedPosts.length === posts.length}
+                                        checked={selectedPosts.length === paginatedPosts.length}
                                         onChange={() => {
-                                            if (selectedPosts.length === posts.length) {
+                                            if (selectedPosts.length === paginatedPosts.length) {
                                                 setSelectedPosts([]);
                                             } else {
-                                                setSelectedPosts(posts.map((post) => post.id));
+                                                setSelectedPosts(paginatedPosts.map((post) => post.id));
                                             }
                                         }}
                                     />
@@ -291,7 +275,7 @@ export default function Post() {
                             </tr>
                         </thead>
                         <tbody>
-                            {posts.map((post) => (
+                            {paginatedPosts.map((post) => (
                                 <tr key={post.id}>
                                     <td>
                                         <input

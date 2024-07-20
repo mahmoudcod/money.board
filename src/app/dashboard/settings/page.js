@@ -146,7 +146,7 @@ const LogoSettingsPage = () => {
         }
     };
 
-    if (loading) return <p>جاري التحميل...</p>;
+    if (loading) return <div class="loader"></div>;
     if (error) return <p>خطأ: {error.message}</p>;
 
     return (
