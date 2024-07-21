@@ -123,6 +123,28 @@ const UPDATE_POST = gql`
   }
 `;
 
+const GET_UPLOADED_FILES = gql`
+  query GetUploadedFiles($limit: Int, $start: Int) {
+    uploadFiles(
+      pagination: { limit: $limit, start: $start }
+      sort: ["createdAt:desc"]
+    ) {
+      data {
+        id
+        attributes {
+          name
+          url
+        }
+      }
+      meta {
+        pagination {
+          total
+        }
+      }
+    }
+  }
+`;
+
 const EditPostPage = ({ params }) => {
     const router = useRouter();
     const { getToken } = useAuth();
@@ -143,6 +165,12 @@ const EditPostPage = ({ params }) => {
     const [showDropdown, setShowDropdown] = useState(false);
     const [hoveredCategory, setHoveredCategory] = useState(null);
     const dropdownRef = useRef(null);
+
+    const [showImageLibrary, setShowImageLibrary] = useState(false);
+    const [libraryImages, setLibraryImages] = useState([]);
+    const [libraryPage, setLibraryPage] = useState(0);
+    const [hasMoreImages, setHasMoreImages] = useState(true);
+    const [selectedLibraryImage, setSelectedLibraryImage] = useState(null);
 
     const { loading, error: postError, data } = useQuery(GET_POST, {
         variables: { id: id },
@@ -174,6 +202,14 @@ const EditPostPage = ({ params }) => {
                     }
                 }, 2000);
             }
+        },
+    });
+
+    const { data: libraryData, fetchMore } = useQuery(GET_UPLOADED_FILES, {
+        variables: { limit: 20, start: 0 },
+        onCompleted: (data) => {
+            setLibraryImages(data.uploadFiles.data);
+            setHasMoreImages(data.uploadFiles.data.length < data.uploadFiles.meta.pagination.total);
         },
     });
 
@@ -259,6 +295,33 @@ const EditPostPage = ({ params }) => {
         );
     };
 
+    const handleSelectFromLibrary = (imageUrl, imageId) => {
+        setImageUrl(imageUrl);
+        setSelectedLibraryImage(imageId);
+        setShowImageLibrary(false);
+    };
+
+    const loadMoreImages = () => {
+        const nextPage = libraryPage + 1;
+        fetchMore({
+            variables: {
+                start: nextPage * 20,
+            },
+            updateQuery: (prev, { fetchMoreResult }) => {
+                if (!fetchMoreResult) return prev;
+                setLibraryImages([...libraryImages, ...fetchMoreResult.uploadFiles.data]);
+                setHasMoreImages(fetchMoreResult.uploadFiles.data.length === 20);
+                setLibraryPage(nextPage);
+                return {
+                    uploadFiles: {
+                        ...fetchMoreResult.uploadFiles,
+                        data: [...prev.uploadFiles.data, ...fetchMoreResult.uploadFiles.data],
+                    },
+                };
+            },
+        });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
@@ -279,11 +342,13 @@ const EditPostPage = ({ params }) => {
 
                 const res = await response.json();
                 coverData = res[0].id;
+            } else if (selectedLibraryImage) {
+                // Image selected from library
+                coverData = selectedLibraryImage;
             } else if (imageUrl && !imageUrl.startsWith('data:')) {
                 // Existing image, keep it as is
                 coverData = data.blog.data.attributes.cover.data.id;
             }
-            // If imageUrl is empty or starts with 'data:', it means the user has removed the image or the upload failed
 
             const formattedCategories = selectedCategories.map(item => item.categoryId);
 
@@ -312,6 +377,7 @@ const EditPostPage = ({ params }) => {
             setErrorMessage('حدث خطأ أثناء تحديث المقالة.');
         }
     };
+
     const removeTag = (tagId) => {
         setSelectedTags((prevTags) => prevTags.filter((tag) => tag.id !== tagId));
     };
@@ -348,6 +414,22 @@ const EditPostPage = ({ params }) => {
                                 </label>
                             )}
                         </div>
+                        {imageUrl && (
+                            <button
+                                type="button"
+                                className="delete-image-button"
+                                onClick={() => {
+                                    setFeatureImage(null);
+                                    setImageUrl('');
+                                    setSelectedLibraryImage(null);
+                                }}
+                            >
+                                حذف الصورة
+                            </button>
+                        )}
+                        <button className='addButton mar' type="button" onClick={() => setShowImageLibrary(true)}>
+                            اختر من المكتبة
+                        </button>
                     </div>
                     <div className="form-group">
                         <label>اسم المقالة:</label>
@@ -544,8 +626,32 @@ const EditPostPage = ({ params }) => {
                     </button>
                 </form>
             </main>
+
+            {showImageLibrary && (
+                <div className="modal">
+                    <div className="modal-content">
+                        <h2>اختر صورة من المكتبة</h2>
+                        <div className="image-grid">
+                            {libraryImages.map((file) => (
+                                <img
+                                    key={file.id}
+                                    src={file.attributes.url}
+                                    alt={file.attributes.name}
+                                    onClick={() => handleSelectFromLibrary(file.attributes.url, file.id)}
+                                    style={{ width: '100px', height: '100px', objectFit: 'cover', cursor: 'pointer' }}
+                                />
+                            ))}
+                        </div>
+                        {hasMoreImages && (
+                            <button className='addButton mar' onClick={loadMoreImages}>تحميل المزيد من الصور</button>
+                        )}
+                        <button className='addButton mar' onClick={() => setShowImageLibrary(false)}>إغلاق</button>
+                    </div>
+                </div>
+            )}
         </>
     );
 };
+
 
 export default EditPostPage;

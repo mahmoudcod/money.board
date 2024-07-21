@@ -70,6 +70,28 @@ const UPDATE_USER = gql`
   }
 `;
 
+const GET_UPLOADED_FILES = gql`
+  query GetUploadedFiles($limit: Int, $start: Int) {
+    uploadFiles(
+      pagination: { limit: $limit, start: $start }
+      sort: ["createdAt:desc"]
+    ) {
+      data {
+        id
+        attributes {
+          name
+          url
+        }
+      }
+      meta {
+        pagination {
+          total
+        }
+      }
+    }
+  }
+`;
+
 const EditUserPage = ({ params }) => {
     const router = useRouter();
     const { getToken } = useAuth();
@@ -83,8 +105,6 @@ const EditUserPage = ({ params }) => {
 
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
-    // const [phone, setPhone] = useState('');
-    // const [address, setAddress] = useState('');
     const [description, setdescription] = useState('');
     const [role, setRole] = useState('');
     const [cover, setcover] = useState(null);
@@ -94,6 +114,12 @@ const EditUserPage = ({ params }) => {
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
 
+    const [showImageLibrary, setShowImageLibrary] = useState(false);
+    const [libraryImages, setLibraryImages] = useState([]);
+    const [libraryPage, setLibraryPage] = useState(0);
+    const [hasMoreImages, setHasMoreImages] = useState(true);
+    const [selectedLibraryImage, setSelectedLibraryImage] = useState(null);
+
     const [updateUser] = useMutation(UPDATE_USER, {
         context: {
             headers: {
@@ -102,13 +128,19 @@ const EditUserPage = ({ params }) => {
         },
     });
 
+    const { data: libraryData, fetchMore } = useQuery(GET_UPLOADED_FILES, {
+        variables: { limit: 20, start: 0 },
+        onCompleted: (data) => {
+            setLibraryImages(data.uploadFiles.data);
+            setHasMoreImages(data.uploadFiles.data.length < data.uploadFiles.meta.pagination.total);
+        },
+    });
+
     useEffect(() => {
         if (!loading && data) {
             const user = data.usersPermissionsUser.data.attributes;
             setUsername(user.username);
             setEmail(user.email);
-            // setPhone(user.phone);
-            // setAddress(user.address);
             setdescription(user.description);
             setRole(user.role.data.id);
             setSlug(user.slug);
@@ -160,6 +192,8 @@ const EditUserPage = ({ params }) => {
 
                 const res = await response.json();
                 coverId = res[0].id;
+            } else if (selectedLibraryImage) {
+                coverId = selectedLibraryImage;
             } else if (imageUrl) {
                 coverId = data.usersPermissionsUser.data.attributes.cover?.data?.id;
             }
@@ -170,8 +204,6 @@ const EditUserPage = ({ params }) => {
                     data: {
                         username,
                         email,
-                        // phone,
-                        // address,
                         description,
                         role,
                         cover: coverId,
@@ -191,6 +223,33 @@ const EditUserPage = ({ params }) => {
 
     const handleEditorChange = ({ text }) => {
         setdescription(text);
+    };
+
+    const handleSelectFromLibrary = (imageUrl, imageId) => {
+        setImageUrl(imageUrl);
+        setSelectedLibraryImage(imageId);
+        setShowImageLibrary(false);
+    };
+
+    const loadMoreImages = () => {
+        const nextPage = libraryPage + 1;
+        fetchMore({
+            variables: {
+                start: nextPage * 20,
+            },
+            updateQuery: (prev, { fetchMoreResult }) => {
+                if (!fetchMoreResult) return prev;
+                setLibraryImages([...libraryImages, ...fetchMoreResult.uploadFiles.data]);
+                setHasMoreImages(fetchMoreResult.uploadFiles.data.length === 20);
+                setLibraryPage(nextPage);
+                return {
+                    uploadFiles: {
+                        ...fetchMoreResult.uploadFiles,
+                        data: [...prev.uploadFiles.data, ...fetchMoreResult.uploadFiles.data],
+                    },
+                };
+            },
+        });
     };
 
     const roles = rolesData?.usersPermissionsRoles?.data || [];
@@ -240,8 +299,12 @@ const EditUserPage = ({ params }) => {
                             <button type="button" className="delete-image-button" onClick={() => {
                                 setcover(null);
                                 setImageUrl('');
+                                setSelectedLibraryImage(null);
                             }}>حذف الصورة</button>
                         )}
+                        <button className=' addButton mar' type="button" onClick={() => setShowImageLibrary(true)}>
+                            اختر من المكتبة
+                        </button>
                     </div>
 
                     <div className="form-group">
@@ -253,16 +316,6 @@ const EditUserPage = ({ params }) => {
                         <label>البريد الإلكتروني:</label>
                         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                     </div>
-
-                    {/* <div className="form-group">
-                        <label>الهاتف:</label>
-                        <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} />
-                    </div> */}
-
-                    {/* <div className="form-group">
-                        <label>العنوان:</label>
-                        <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} />
-                    </div> */}
 
                     <div className="form-group">
                         <label>نبذة عن المستخدم:</label>
@@ -307,6 +360,29 @@ const EditUserPage = ({ params }) => {
                     <button className='sub-button' type="submit">حفظ التغييرات</button>
                 </form>
             </main>
+
+            {showImageLibrary && (
+                <div className="modal">
+                    <div className="modal-content">
+                        <h2>اختر صورة من المكتبة</h2>
+                        <div className="image-grid">
+                            {libraryImages.map((file) => (
+                                <img
+                                    key={file.id}
+                                    src={file.attributes.url}
+                                    alt={file.attributes.name}
+                                    onClick={() => handleSelectFromLibrary(file.attributes.url, file.id)}
+                                    style={{ width: '100px', height: '100px', objectFit: 'cover', cursor: 'pointer' }}
+                                />
+                            ))}
+                        </div>
+                        {hasMoreImages && (
+                            <button className='addButton mar' onClick={loadMoreImages}>تحميل المزيد من الصور</button>
+                        )}
+                        <button className=' addButton mar' onClick={() => setShowImageLibrary(false)}>إغلاق</button>
+                    </div>
+                </div>
+            )}
         </>
     );
 };

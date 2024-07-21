@@ -38,6 +38,28 @@ const ADD_USER = gql`
   }
 `;
 
+const GET_UPLOADED_FILES = gql`
+  query GetUploadedFiles($limit: Int, $start: Int) {
+    uploadFiles(
+      pagination: { limit: $limit, start: $start }
+      sort: ["createdAt:desc"]
+    ) {
+      data {
+        id
+        attributes {
+          name
+          url
+        }
+      }
+      meta {
+        pagination {
+          total
+        }
+      }
+    }
+  }
+`;
+
 const AddUser = () => {
     const router = useRouter();
 
@@ -55,6 +77,12 @@ const AddUser = () => {
     const [successMessage, setSuccessMessage] = useState('');
     const [roleError, setRoleError] = useState('');
 
+    const [showImageLibrary, setShowImageLibrary] = useState(false);
+    const [libraryImages, setLibraryImages] = useState([]);
+    const [libraryPage, setLibraryPage] = useState(0);
+    const [hasMoreImages, setHasMoreImages] = useState(true);
+    const [selectedLibraryImage, setSelectedLibraryImage] = useState(null);
+
     const { loading: rolesLoading, error: rolesError, data: rolesData } = useQuery(GET_ROLES);
 
     const [addUser] = useMutation(ADD_USER, {
@@ -62,6 +90,14 @@ const AddUser = () => {
             headers: {
                 authorization: token ? `Bearer ${token}` : '',
             },
+        },
+    });
+
+    const { data: libraryData, fetchMore } = useQuery(GET_UPLOADED_FILES, {
+        variables: { limit: 20, start: 0 },
+        onCompleted: (data) => {
+            setLibraryImages(data.uploadFiles.data);
+            setHasMoreImages(data.uploadFiles.data.length < data.uploadFiles.meta.pagination.total);
         },
     });
 
@@ -113,6 +149,8 @@ const AddUser = () => {
 
                 const res = await response.json();
                 coverId = res[0]?.id;
+            } else if (selectedLibraryImage) {
+                coverId = selectedLibraryImage;
             }
 
             const { data } = await addUser({
@@ -139,6 +177,33 @@ const AddUser = () => {
 
     const handleEditorChange = ({ text }) => {
         setdescription(text);
+    };
+
+    const handleSelectFromLibrary = (imageUrl, imageId) => {
+        setImageUrl(imageUrl);
+        setSelectedLibraryImage(imageId);
+        setShowImageLibrary(false);
+    };
+
+    const loadMoreImages = () => {
+        const nextPage = libraryPage + 1;
+        fetchMore({
+            variables: {
+                start: nextPage * 20,
+            },
+            updateQuery: (prev, { fetchMoreResult }) => {
+                if (!fetchMoreResult) return prev;
+                setLibraryImages([...libraryImages, ...fetchMoreResult.uploadFiles.data]);
+                setHasMoreImages(fetchMoreResult.uploadFiles.data.length === 20);
+                setLibraryPage(nextPage);
+                return {
+                    uploadFiles: {
+                        ...fetchMoreResult.uploadFiles,
+                        data: [...prev.uploadFiles.data, ...fetchMoreResult.uploadFiles.data],
+                    },
+                };
+            },
+        });
     };
 
     if (rolesLoading) return <p>جاري تحميل الأدوار...</p>;
@@ -184,6 +249,9 @@ const AddUser = () => {
                                 className="file-input"
                             />
                         </div>
+                        <button className='addButton mar' type="button" onClick={() => setShowImageLibrary(true)}>
+                            اختر من المكتبة
+                        </button>
                     </div>
                     <div className="form-group">
                         <label>اسم المستخدم:</label>
@@ -204,7 +272,6 @@ const AddUser = () => {
                     <div className="form-group">
                         <label>الدور:</label>
                         <select
-
                             value={role}
                             onChange={(e) => setRole(e.target.value)}
                             className={roleError ? 'has-error select-box ' : 'select-box '}
@@ -230,6 +297,29 @@ const AddUser = () => {
                     <button className='sub-button' type="submit">اضافة</button>
                 </form>
             </main>
+
+            {showImageLibrary && (
+                <div className="modal">
+                    <div className="modal-content">
+                        <h2>اختر صورة من المكتبة</h2>
+                        <div className="image-grid">
+                            {libraryImages.map((file) => (
+                                <img
+                                    key={file.id}
+                                    src={file.attributes.url}
+                                    alt={file.attributes.name}
+                                    onClick={() => handleSelectFromLibrary(file.attributes.url, file.id)}
+                                    style={{ width: '100px', height: '100px', objectFit: 'cover', cursor: 'pointer' }}
+                                />
+                            ))}
+                        </div>
+                        {hasMoreImages && (
+                            <button className='addButton mar' onClick={loadMoreImages}>تحميل المزيد من الصور</button>
+                        )}
+                        <button className='addButton mar' onClick={() => setShowImageLibrary(false)}>إغلاق</button>
+                    </div>
+                </div>
+            )}
         </>
     );
 };

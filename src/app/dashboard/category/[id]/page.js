@@ -81,6 +81,28 @@ const GET_ALL_SUBCATEGORIES = gql`
   }
 `;
 
+const GET_UPLOADED_FILES = gql`
+  query GetUploadedFiles($limit: Int, $start: Int) {
+    uploadFiles(
+      pagination: { limit: $limit, start: $start }
+      sort: ["createdAt:desc"]
+    ) {
+      data {
+        id
+        attributes {
+          name
+          url
+        }
+      }
+      meta {
+        pagination {
+          total
+        }
+      }
+    }
+  }
+`;
+
 const EditCategoryPage = ({ params }) => {
     const router = useRouter();
     const { getToken } = useAuth();
@@ -99,6 +121,11 @@ const EditCategoryPage = ({ params }) => {
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
     const [isPublished, setIsPublished] = useState(false);
+    const [showImageLibrary, setShowImageLibrary] = useState(false);
+    const [libraryImages, setLibraryImages] = useState([]);
+    const [libraryPage, setLibraryPage] = useState(0);
+    const [hasMoreImages, setHasMoreImages] = useState(true);
+    const [selectedLibraryImage, setSelectedLibraryImage] = useState(null);
 
     const { loading, error: categoryError, data } = useQuery(GET_CATEGORY, {
         variables: { id: id },
@@ -112,6 +139,14 @@ const EditCategoryPage = ({ params }) => {
         onError: (error) => {
             console.error('Error fetching subcategories:', error);
             setErrorMessage('حدث خطأ أثناء جلب الفئات الفرعية.');
+        },
+    });
+
+    const { data: libraryData, fetchMore } = useQuery(GET_UPLOADED_FILES, {
+        variables: { limit: 20, start: 0 },
+        onCompleted: (data) => {
+            setLibraryImages(data.uploadFiles.data);
+            setHasMoreImages(data.uploadFiles.data.length < data.uploadFiles.meta.pagination.total);
         },
     });
 
@@ -196,8 +231,34 @@ const EditCategoryPage = ({ params }) => {
     const handleNameChange = (e) => {
         const newName = e.target.value;
         setName(newName);
-        // Automatically update slug when name changes
         setSlug(newName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
+    };
+
+    const handleSelectFromLibrary = (imageUrl, imageId) => {
+        setIconUrl(imageUrl);
+        setSelectedLibraryImage(imageId);
+        setShowImageLibrary(false);
+    };
+
+    const loadMoreImages = () => {
+        const nextPage = libraryPage + 1;
+        fetchMore({
+            variables: {
+                start: nextPage * 20,
+            },
+            updateQuery: (prev, { fetchMoreResult }) => {
+                if (!fetchMoreResult) return prev;
+                setLibraryImages([...libraryImages, ...fetchMoreResult.uploadFiles.data]);
+                setHasMoreImages(fetchMoreResult.uploadFiles.data.length === 20);
+                setLibraryPage(nextPage);
+                return {
+                    uploadFiles: {
+                        ...fetchMoreResult.uploadFiles,
+                        data: [...prev.uploadFiles.data, ...fetchMoreResult.uploadFiles.data],
+                    },
+                };
+            },
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -206,7 +267,6 @@ const EditCategoryPage = ({ params }) => {
             let iconId = null;
 
             if (icon) {
-                // Upload new icon
                 const formData = new FormData();
                 formData.append('files', icon);
 
@@ -220,14 +280,13 @@ const EditCategoryPage = ({ params }) => {
 
                 const res = await response.json();
                 iconId = res[0].id;
+            } else if (selectedLibraryImage) {
+                iconId = selectedLibraryImage;
             } else if (iconUrl) {
-                // Extract ID from existing icon URL
                 const iconIdMatch = iconUrl.match(/\/(\d+)\/?$/);
                 iconId = iconIdMatch ? iconIdMatch[1] : null;
 
-                // If we couldn't extract an ID, it might be a full URL
                 if (!iconId && iconUrl.startsWith('http')) {
-                    // In this case, we don't need to update the icon
                     iconId = undefined;
                 }
             }
@@ -242,7 +301,6 @@ const EditCategoryPage = ({ params }) => {
                 publishedAt: isPublished ? new Date().toISOString() : null,
             };
 
-            // Only include icon in the update if it's not undefined
             if (iconId !== undefined) {
                 updateVariables.icon = iconId;
             }
@@ -301,11 +359,15 @@ const EditCategoryPage = ({ params }) => {
                             onClick={() => {
                                 setIcon(null);
                                 setIconUrl('');
+                                setSelectedLibraryImage(null);
                             }}
                         >
                             حذف الأيقونة
                         </button>
                     )}
+                    <button className='addButton mar' type="button" onClick={() => setShowImageLibrary(true)}>
+                        اختر من المكتبة
+                    </button>
                 </div>
                 <div className="form-group">
                     <label>اسم الفئة:</label>
@@ -381,6 +443,29 @@ const EditCategoryPage = ({ params }) => {
                     حفظ التغييرات
                 </button>
             </form>
+
+            {showImageLibrary && (
+                <div className="modal">
+                    <div className="modal-content">
+                        <h2>اختر صورة من المكتبة</h2>
+                        <div className="image-grid">
+                            {libraryImages.map((file) => (
+                                <img
+                                    key={file.id}
+                                    src={file.attributes.url}
+                                    alt={file.attributes.name}
+                                    onClick={() => handleSelectFromLibrary(file.attributes.url, file.id)}
+                                    style={{ width: '100px', height: '100px', objectFit: 'cover', cursor: 'pointer' }}
+                                />
+                            ))}
+                        </div>
+                        {hasMoreImages && (
+                            <button className='addButton mar' onClick={loadMoreImages}>تحميل المزيد من الصور</button>
+                        )}
+                        <button className='addButton mar' onClick={() => setShowImageLibrary(false)}>إغلاق</button>
+                    </div>
+                </div>
+            )}
         </main>
     );
 };

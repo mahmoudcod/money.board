@@ -130,6 +130,28 @@ const ADD_POST = gql`
   }
 `;
 
+const GET_UPLOADED_FILES = gql`
+  query GetUploadedFiles($limit: Int, $start: Int) {
+    uploadFiles(
+      pagination: { limit: $limit, start: $start }
+      sort: ["createdAt:desc"]
+    ) {
+      data {
+        id
+        attributes {
+          name
+          url
+        }
+      }
+      meta {
+        pagination {
+          total
+        }
+      }
+    }
+  }
+`;
+
 const AddPost = () => {
     const router = useRouter();
     const { getToken } = useAuth();
@@ -154,6 +176,12 @@ const AddPost = () => {
     const [selectedCategories, setSelectedCategories] = useState([]);
     const dropdownRef = useRef(null);
 
+    const [showImageLibrary, setShowImageLibrary] = useState(false);
+    const [libraryImages, setLibraryImages] = useState([]);
+    const [libraryPage, setLibraryPage] = useState(0);
+    const [hasMoreImages, setHasMoreImages] = useState(true);
+    const [selectedLibraryImage, setSelectedLibraryImage] = useState(null);
+
     const [addPost] = useMutation(ADD_POST, {
         context: {
             headers: {
@@ -169,6 +197,14 @@ const AddPost = () => {
             setTimeout(() => {
                 router.push('/dashboard/posts');
             }, 3000);
+        },
+    });
+
+    const { data: libraryData, fetchMore } = useQuery(GET_UPLOADED_FILES, {
+        variables: { limit: 20, start: 0 },
+        onCompleted: (data) => {
+            setLibraryImages(data.uploadFiles.data);
+            setHasMoreImages(data.uploadFiles.data.length < data.uploadFiles.meta.pagination.total);
         },
     });
 
@@ -231,6 +267,33 @@ const AddPost = () => {
         reader.readAsDataURL(file);
     };
 
+    const handleSelectFromLibrary = (imageUrl, imageId) => {
+        setImageUrl(imageUrl);
+        setSelectedLibraryImage(imageId);
+        setShowImageLibrary(false);
+    };
+
+    const loadMoreImages = () => {
+        const nextPage = libraryPage + 1;
+        fetchMore({
+            variables: {
+                start: nextPage * 20,
+            },
+            updateQuery: (prev, { fetchMoreResult }) => {
+                if (!fetchMoreResult) return prev;
+                setLibraryImages([...libraryImages, ...fetchMoreResult.uploadFiles.data]);
+                setHasMoreImages(fetchMoreResult.uploadFiles.data.length === 20);
+                setLibraryPage(nextPage);
+                return {
+                    uploadFiles: {
+                        ...fetchMoreResult.uploadFiles,
+                        data: [...prev.uploadFiles.data, ...fetchMoreResult.uploadFiles.data],
+                    },
+                };
+            },
+        });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
@@ -253,9 +316,9 @@ const AddPost = () => {
 
                 const res = await response.json();
                 featureImageId = res[0]?.id;
+            } else if (selectedLibraryImage) {
+                featureImageId = selectedLibraryImage;
             }
-
-
 
             const formattedCategories = selectedCategories.map(item => item.categoryId);
 
@@ -325,6 +388,9 @@ const AddPost = () => {
                                 </label>
                             )}
                         </div>
+                        <button className='addButton mar' type="button" onClick={() => setShowImageLibrary(true)}>
+                            اختر من المكتبة
+                        </button>
                     </div>
                     {/* Title */}
                     <div className="form-group">
@@ -401,8 +467,7 @@ const AddPost = () => {
                                                                             fontWeight: selectedCategories.some(item => item.categoryId === cat.id && item.subcategoryId === subcat.id) ? 'bold' : 'normal'
                                                                         }}
                                                                     >
-                                                                        {subcat.attributes.subName}
-                                                                    </div>
+                                                                        {subcat.attributes.subName}</div>
                                                                 ))}
                                                             </div>
                                                         )}
@@ -442,30 +507,6 @@ const AddPost = () => {
                             </div>
                         )}
                     </div>
-                    {/* Published Status */}
-                    {/* <div className="form-group">
-                        <label>حالة المقالة:</label>
-                        <div>
-                            <input
-                                type="radio"
-                                id="draft"
-                                name="published"
-                                value="draft"
-                                checked={!published}
-                                onChange={() => setPublished(false)}
-                            />
-                            <label htmlFor="draft">مسودة</label>
-                            <input
-                                type="radio"
-                                id="published"
-                                name="published"
-                                value="published"
-                                checked={published}
-                                onChange={() => setPublished(true)}
-                            />
-                            <label htmlFor="published">نشر</label>
-                        </div>
-                    </div> */}
                     {/* Author */}
                     <div className="form-group">
                         <label>الكاتب:</label>
@@ -557,6 +598,29 @@ const AddPost = () => {
                 )}
                 {addPostSuccess && <p className="success-message">{addPostSuccess}</p>}
             </main>
+
+            {showImageLibrary && (
+                <div className="modal">
+                    <div className="modal-content">
+                        <h2>اختر صورة من المكتبة</h2>
+                        <div className="image-grid">
+                            {libraryImages.map((file) => (
+                                <img
+                                    key={file.id}
+                                    src={file.attributes.url}
+                                    alt={file.attributes.name}
+                                    onClick={() => handleSelectFromLibrary(file.attributes.url, file.id)}
+                                    style={{ width: '100px', height: '100px', objectFit: 'cover', cursor: 'pointer' }}
+                                />
+                            ))}
+                        </div>
+                        {hasMoreImages && (
+                            <button className='addButton mar' onClick={loadMoreImages}>تحميل المزيد من الصور</button>
+                        )}
+                        <button className='addButton mar' onClick={() => setShowImageLibrary(false)}>إغلاق</button>
+                    </div>
+                </div>
+            )}
         </>
     );
 };

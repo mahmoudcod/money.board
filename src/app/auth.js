@@ -22,6 +22,7 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
+    let appName = 'ss'
 
     useEffect(() => {
         const token = Cookies.get('jwt');
@@ -54,11 +55,11 @@ export const AuthProvider = ({ children }) => {
         Cookies.remove('jwt');
         router.push('/');
     };
-
+    const app = () => appName;
     const getToken = () => user;
 
     return (
-        <AuthContext.Provider value={{ login, logout, getToken, loading }}>
+        <AuthContext.Provider value={{ login, logout, getToken, app, loading }}>
             {children}
         </AuthContext.Provider>
     );

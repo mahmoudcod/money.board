@@ -162,9 +162,9 @@ export default function UploadedFilesPage() {
         <main className="head">
             <div className="head-title">
                 <h3 className="title">الملفات المرفوعة: {totalCount}</h3>
-                <Link href="/dashboard/upload-file" className="addButton">
+                {/* <Link href="/dashboard/upload-file" className="addButton">
                     رفع ملف جديد
-                </Link>
+                </Link> */}
             </div>
 
             {errorMessage && <div className="error-message">{errorMessage}</div>}
