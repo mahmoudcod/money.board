@@ -43,6 +43,8 @@ export default function UploadedFilesPage() {
     const [token, setToken] = useState(null);
     const [isTokenLoading, setIsTokenLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState(null);
+    const [isSmallScreen, setIsSmallScreen] = useState(false)
+
     const pageSize = 10;
     const { getToken, refreshToken } = useAuth();
 
@@ -64,6 +66,16 @@ export default function UploadedFilesPage() {
         };
 
         fetchToken();
+        const handleResize = () => {
+            setIsSmallScreen(window.innerWidth <= 650);
+        };
+
+        handleResize();
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
     }, [getToken, refreshToken]);
 
     const { loading, error, data, refetch } = useQuery(GET_UPLOADED_FILES, {
@@ -172,17 +184,19 @@ export default function UploadedFilesPage() {
             <table className="table">
                 <thead>
                     <tr>
-                        <th>الاسم</th>
+                        {/* <th>الاسم</th> */}
                         <th>الصورة</th>
                         <th>الرابط</th>
-                        <th>تاريخ الرفع</th>
+                        {!isSmallScreen && (<>
+                            <th>تاريخ الرفع</th>
+                        </>)}
                         <th>الإعدادات</th>
                     </tr>
                 </thead>
                 <tbody>
                     {files.map(file => (
                         <tr key={file.id}>
-                            <td>{file.attributes.name}</td>
+                            {/* <td>{file.attributes.name}</td> */}
                             <td>
                                 <img src={file.attributes.url} alt={file.attributes.name} width={64} height={64} />
                             </td>
@@ -191,7 +205,9 @@ export default function UploadedFilesPage() {
                                     فتح الملف
                                 </a>
                             </td>
-                            <td>{formatArabicDate(file.attributes.createdAt)}</td>
+                            {!isSmallScreen && (<>
+                                <td>{formatArabicDate(file.attributes.createdAt)}</td>
+                            </>)}
                             <td>
                                 <RiDeleteBin6Line
                                     onClick={() => handleDeleteFile(file.id)}

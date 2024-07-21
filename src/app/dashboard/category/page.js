@@ -68,6 +68,7 @@ export default function CategoriesPage() {
     const [token, setToken] = useState(null);
     const [isTokenLoading, setIsTokenLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState(null);
+    const [isSmallScreen, setIsSmallScreen] = useState(false);
     const [publishFilter, setPublishFilter] = useState('all'); // 'all', 'published', or 'unpublished'
     const pageSize = 10;
     const router = useRouter();
@@ -90,7 +91,19 @@ export default function CategoriesPage() {
             }
         };
 
+
+
         fetchToken();
+        const handleResize = () => {
+            setIsSmallScreen(window.innerWidth <= 650);
+        };
+
+        handleResize();
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
     }, [getToken, refreshToken]);
 
     const { loading, error, data, refetch } = useQuery(GET_CATEGORIES, {
@@ -240,9 +253,13 @@ export default function CategoriesPage() {
                     <tr>
                         <th>الاسم</th>
                         <th>الأيقونة</th>
-                        <th>فرعي</th>
-                        <th>عدد المقالات</th>
-                        <th>تاريخ الإنشاء</th>
+                        {!isSmallScreen && (
+                            <>
+                                <th>فرعي</th>
+                                <th>عدد المقالات</th>
+                                <th>تاريخ الإنشاء</th>
+                            </>
+                        )}
                         <th>الحالة</th>
                         <th>الإعدادات</th>
                     </tr>
@@ -258,21 +275,22 @@ export default function CategoriesPage() {
                                     "لا توجد أيقونة"
                                 )}
                             </td>
-                            <td>
-                                <ul>
-                                    {category.subCategories.map(subCat => (
-                                        <li key={subCat.id}>{subCat.name}</li>
-                                    ))}
-                                </ul>
-                            </td>
-                            <td>{category.blogCount}</td>
-                            <td>{formatArabicDate(category.createdAt)}</td>
+                            {!isSmallScreen && (
+                                <>
+                                    <td>
+                                        <ul>
+                                            {category.subCategories.map(subCat => (
+                                                <li key={subCat.id}>{subCat.name}</li>
+                                            ))}
+                                        </ul>
+                                    </td>
+                                    <td>{category.blogCount}</td>
+                                    <td>{formatArabicDate(category.createdAt)}</td>
+                                </>
+                            )}
                             <td>{category.isPublished ? "منشور" : "غير منشور"}</td>
                             <td>
                                 <HiPencil onClick={() => router.push(`/dashboard/category/${category.id}`)} style={{ cursor: 'pointer', marginLeft: '10px' }} />
-
-
-
                                 <RiDeleteBin6Line onClick={() => handleDeleteCategory(category.id)} className='delete' style={{ cursor: 'pointer' }} />
                             </td>
                         </tr>

@@ -12,6 +12,28 @@ const GET_LOGO = gql`
       data {
         id
         attributes {
+          appName
+          logo {
+            data {
+              id
+              attributes {
+                url
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+const UPDATE_LOGO = gql`
+  mutation updateLogo($data: LogoInput!) {
+    updateLogo(data: $data) {
+      data {
+        id
+        attributes {
+          appName
           logo {
             data {
               attributes {
@@ -25,19 +47,22 @@ const GET_LOGO = gql`
   }
 `;
 
-const UPDATE_LOGO = gql`
-  mutation updateLogo($id: ID!, $logo: ID!) {
-    updateLogo(id: $id, data: { logo: $logo }) {
+const GET_UPLOADED_FILES = gql`
+  query GetUploadedFiles($limit: Int, $start: Int) {
+    uploadFiles(
+      pagination: { limit: $limit, start: $start }
+      sort: ["createdAt:desc"]
+    ) {
       data {
         id
         attributes {
-          logo {
-            data {
-              attributes {
-                url
-              }
-            }
-          }
+          name
+          url
+        }
+      }
+      meta {
+        pagination {
+          total
         }
       }
     }
@@ -52,9 +77,15 @@ const LogoSettingsPage = () => {
     const [logoId, setLogoId] = useState('');
     const [logoFile, setLogoFile] = useState(null);
     const [imageUrl, setImageUrl] = useState('');
+    const [appName, setAppName] = useState('');
     const [errorMessage, setErrorMessage] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [showImageLibrary, setShowImageLibrary] = useState(false);
+    const [libraryImages, setLibraryImages] = useState([]);
+    const [libraryPage, setLibraryPage] = useState(0);
+    const [hasMoreImages, setHasMoreImages] = useState(true);
+    const [selectedLibraryImage, setSelectedLibraryImage] = useState(null);
 
     const { loading, error, data } = useQuery(GET_LOGO, {
         context: {
@@ -72,10 +103,22 @@ const LogoSettingsPage = () => {
         },
     });
 
+    const { data: libraryData, fetchMore } = useQuery(GET_UPLOADED_FILES, {
+        variables: { limit: 20, start: 0 },
+        onCompleted: (data) => {
+            setLibraryImages(data.uploadFiles.data);
+            setHasMoreImages(data.uploadFiles.data.length < data.uploadFiles.meta.pagination.total);
+        },
+    });
+
     useEffect(() => {
         if (!loading && data && data.logo && data.logo.data) {
             setLogoId(data.logo.data.id);
             setImageUrl(data.logo.data.attributes.logo.data?.attributes.url || '');
+            setAppName(data.logo.data.attributes.appName || '');
+            if (data.logo.data.attributes.logo.data) {
+                setSelectedLibraryImage(data.logo.data.attributes.logo.data.id);
+            }
         }
     }, [loading, data]);
 
@@ -100,6 +143,34 @@ const LogoSettingsPage = () => {
         reader.readAsDataURL(file);
     };
 
+    const handleSelectFromLibrary = (imageUrl, imageId) => {
+        setImageUrl(imageUrl);
+        setSelectedLibraryImage(imageId);
+        setLogoFile(null);
+        setShowImageLibrary(false);
+    };
+
+    const loadMoreImages = () => {
+        const nextPage = libraryPage + 1;
+        fetchMore({
+            variables: {
+                start: nextPage * 20,
+            },
+            updateQuery: (prev, { fetchMoreResult }) => {
+                if (!fetchMoreResult) return prev;
+                setLibraryImages([...libraryImages, ...fetchMoreResult.uploadFiles.data]);
+                setHasMoreImages(fetchMoreResult.uploadFiles.data.length === 20);
+                setLibraryPage(nextPage);
+                return {
+                    uploadFiles: {
+                        ...fetchMoreResult.uploadFiles,
+                        data: [...prev.uploadFiles.data, ...fetchMoreResult.uploadFiles.data],
+                    },
+                };
+            },
+        });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
@@ -107,7 +178,8 @@ const LogoSettingsPage = () => {
         setSuccessMessage(null);
 
         try {
-            let logoFileId = null;
+            let logoFileId = selectedLibraryImage;
+
             if (logoFile) {
                 const formData = new FormData();
                 formData.append('files', logoFile);
@@ -130,32 +202,43 @@ const LogoSettingsPage = () => {
 
             await updateLogo({
                 variables: {
-                    id: logoId,
-                    logo: logoFileId,
+                    data: {
+                        logo: logoFileId,
+                        appName: appName,
+                    },
                 },
             });
 
-            setSuccessMessage("تم تحديث الشعار بنجاح");
+            setSuccessMessage("تم تحديث الشعار واسم التطبيق بنجاح");
             setTimeout(() => {
                 router.push('/dashboard/settings');
             }, 3000);
         } catch (error) {
-            setErrorMessage("خطأ أثناء تحديث الشعار: " + error.message);
+            setErrorMessage("خطأ أثناء التحديث: " + error.message);
         } finally {
             setIsLoading(false);
         }
     };
 
-    if (loading) return <div class="loader"></div>;
+    if (loading) return <div className="loader"></div>;
     if (error) return <p>خطأ: {error.message}</p>;
 
     return (
         <>
             <main className="head">
                 <div className="head-title">
-                    <h3 className="title">تعديل شعار التطبيق</h3>
+                    <h3 className="title">تعديل شعار واسم التطبيق</h3>
                 </div>
                 <form className="content" onSubmit={handleSubmit}>
+                    <div className="form-group">
+                        <label>اسم التطبيق:</label>
+                        <input
+                            type="text"
+                            value={appName}
+                            onChange={(e) => setAppName(e.target.value)}
+                            placeholder="أدخل اسم التطبيق"
+                        />
+                    </div>
                     <div className="form-group">
                         <label>شعار التطبيق:</label>
                         <div
@@ -179,18 +262,22 @@ const LogoSettingsPage = () => {
                                 </label>
                             )}
                         </div>
-                        {imageUrl ? (
+                        {imageUrl && (
                             <button
                                 type="button"
                                 className="delete-image-button"
                                 onClick={() => {
-                                    setImageUrl(null);
+                                    setLogoFile(null);
                                     setImageUrl('');
+                                    setSelectedLibraryImage(null);
                                 }}
                             >
                                 حذف الصورة
                             </button>
-                        ) : null}
+                        )}
+                        <button className='addButton mar' type="button" onClick={() => setShowImageLibrary(true)}>
+                            اختر من المكتبة
+                        </button>
                     </div>
                     <button className='sub-button' type="submit" disabled={isLoading}>
                         {isLoading ? 'جاري التحديث...' : 'حفظ التغييرات'}
@@ -199,6 +286,29 @@ const LogoSettingsPage = () => {
                 {errorMessage && <div className="error-message">{errorMessage}</div>}
                 {successMessage && <div className="success-message">{successMessage}</div>}
             </main>
+
+            {showImageLibrary && (
+                <div className="modal">
+                    <div className="modal-content">
+                        <h2>اختر صورة من المكتبة</h2>
+                        <div className="image-grid">
+                            {libraryImages.map((file) => (
+                                <img
+                                    key={file.id}
+                                    src={file.attributes.url}
+                                    alt={file.attributes.name}
+                                    onClick={() => handleSelectFromLibrary(file.attributes.url, file.id)}
+                                    style={{ width: '100px', height: '100px', objectFit: 'cover', cursor: 'pointer' }}
+                                />
+                            ))}
+                        </div>
+                        {hasMoreImages && (
+                            <button className='addButton mar' onClick={loadMoreImages}>تحميل المزيد من الصور</button>
+                        )}
+                        <button className='addButton mar' onClick={() => setShowImageLibrary(false)}>إغلاق</button>
+                    </div>
+                </div>
+            )}
         </>
     );
 };

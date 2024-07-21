@@ -1,6 +1,21 @@
 "use client"
 import React, { useState } from 'react';
 import { useAuth } from './auth';
+import { useQuery } from '@apollo/client';
+import gql from 'graphql-tag';
+
+const GET_LOGO = gql`
+  query getLogo {
+    logo {
+      data {
+        id
+        attributes {
+          appName
+        }
+      }
+    }
+  }
+`;
 
 export default function LoginPage() {
     const [identifier, setIdentifier] = useState('');
@@ -9,27 +24,32 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
 
+    const { data, loading: queryLoading, error: queryError } = useQuery(GET_LOGO);
+
+    const appName = data?.logo?.data?.attributes?.appName || 'صناع المال';
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true); // Set loading state
-
+        setLoading(true);
         try {
             await login(identifier, password);
         } catch (error) {
             console.error('Login failed:', error.message);
             setErrorMessage(error.message);
         } finally {
-            setLoading(false); // Reset loading state
+            setLoading(false);
         }
     };
+
+    if (queryLoading) return <p>Loading...</p>;
+    if (queryError) return <p>Error loading app name</p>;
 
     return (
         <form className="login-page" onSubmit={handleSubmit}>
             <div className='login'>
                 {/* <img src='/favicon.ico' alt="Logo" /> */}
-                <h1>صناع المال</h1>
+                <h1>{appName}</h1>
             </div>
-
             <div className="login-info">
                 <div className="login-content">
                     <p>.مرحبا بعودتك! يرجى تسجيل الدخول إلى حسابك</p>

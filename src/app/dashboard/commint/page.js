@@ -54,6 +54,8 @@ export default function Comments() {
     const [isTokenLoading, setIsTokenLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState(null);
     const [nameFilter, setNameFilter] = useState("");
+    const [isSmallScreen, setIsSmallScreen] = useState(false);
+
     const pageSize = 10;
     const router = useRouter();
     const { getToken, refreshToken } = useAuth();
@@ -76,6 +78,16 @@ export default function Comments() {
         };
 
         fetchToken();
+        const handleResize = () => {
+            setIsSmallScreen(window.innerWidth <= 650);
+        };
+
+        handleResize();
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
     }, [getToken, refreshToken]);
 
     const { loading, error, data, refetch } = useQuery(GET_COMMENTS, {
@@ -189,9 +201,11 @@ export default function Comments() {
                 <thead>
                     <tr>
                         <th>الاسم</th>
-                        <th>البريد الإلكتروني</th>
                         <th>التعليق</th>
-                        <th>تاريخ الإنشاء</th>
+                        {!isSmallScreen && (<>
+                            <th>البريد الإلكتروني</th>
+                            <th>تاريخ الإنشاء</th>
+                        </>)}
                         <th>الإعدادات</th>
                     </tr>
                 </thead>
@@ -199,9 +213,11 @@ export default function Comments() {
                     {comments.map(comment => (
                         <tr key={comment.id}>
                             <td>{comment.name}</td>
-                            <td>{comment.email}</td>
                             <td>{comment.comment.substring(0, 50)}...</td>
-                            <td>{formatArabicDate(comment.createdAt)}</td>
+                            {!isSmallScreen && (<>
+                                <td>{comment.email}</td>
+                                <td>{formatArabicDate(comment.createdAt)}</td>
+                            </>)}
                             <td>
                                 <HiOutlineEye onClick={() => router.push(`/dashboard/commint/${comment.id}`)} style={{ cursor: 'pointer', marginLeft: '10px' }} />
                                 <RiDeleteBin6Line onClick={() => handleDeleteComment(comment.id)} className='delete' style={{ cursor: 'pointer' }} />

@@ -48,6 +48,8 @@ export default function ContactQueries() {
     const [token, setToken] = useState(null);
     const [isTokenLoading, setIsTokenLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState(null);
+    const [isSmallScreen, setIsSmallScreen] = useState(false);
+
     const pageSize = 10;
     const router = useRouter();
     const { getToken, refreshToken } = useAuth();
@@ -70,6 +72,16 @@ export default function ContactQueries() {
         };
 
         fetchToken();
+        const handleResize = () => {
+            setIsSmallScreen(window.innerWidth <= 650);
+        };
+
+        handleResize();
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
     }, [getToken, refreshToken]);
 
     const { loading, error, data, refetch } = useQuery(GET_CONTACT_QUERIES, {
@@ -180,9 +192,11 @@ export default function ContactQueries() {
                 <thead>
                     <tr>
                         <th>الاسم</th>
-                        <th>البريد الإلكتروني</th>
                         <th>الرسالة</th>
-                        <th>تاريخ الرسالة</th>
+                        {!isSmallScreen && (<>
+                            <th>البريد الإلكتروني</th>
+                            <th>تاريخ الرسالة</th>
+                        </>)}
                         <th>الإعدادات</th>
                     </tr>
                 </thead>
@@ -190,9 +204,11 @@ export default function ContactQueries() {
                     {queries.map(query => (
                         <tr key={query.id}>
                             <td>{query.name}</td>
-                            <td>{query.email}</td>
                             <td>{query.message.substring(0, 50)}...</td>
-                            <td>{formatArabicDate(query.createdAt)}</td>
+                            {!isSmallScreen && (<>
+                                <td>{query.email}</td>
+                                <td>{formatArabicDate(query.createdAt)}</td>
+                            </>)}
                             <td>
                                 <HiOutlineEye onClick={() => router.push(`/dashboard/contact/${query.id}`)} style={{ cursor: 'pointer', marginLeft: '10px' }} />
                                 <RiDeleteBin6Line onClick={() => handleDeleteQuery(query.id)} className='delete' style={{ cursor: 'pointer' }} />

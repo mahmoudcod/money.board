@@ -51,6 +51,8 @@ export default function Users() {
     const [selectedUsers, setSelectedUsers] = useState([]);
     const [errorMessage, setErrorMessage] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
+    const [isSmallScreen, setIsSmallScreen] = useState(false);
+
     const pageSize = 30;
     const { getToken } = useAuth();
 
@@ -91,6 +93,16 @@ export default function Users() {
             start: (currentPage - 1) * pageSize,
             limit: pageSize
         });
+        const handleResize = () => {
+            setIsSmallScreen(window.innerWidth <= 650);
+        };
+
+        handleResize();
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
     }, [currentPage, refetch]);
 
     if (loading) return <div class="loader"></div>;
@@ -207,9 +219,11 @@ export default function Users() {
                             <tr>
                                 <th> <input type="checkbox" checked={selectedUsers.length === users.length} onChange={selectAllUsers} /></th>
                                 <th>اسم المستخدم</th>
-                                <th>البريد الإلكتروني</th>
                                 <th>الأدوار</th>
-                                <th>تاريخ الإنشاء</th>
+                                {!isSmallScreen && (<>
+                                    <th>البريد الإلكتروني</th>
+                                    <th>تاريخ الإنشاء</th>
+                                </>)}
                                 <th>الإعدادات</th>
                             </tr>
                         </thead>
@@ -218,9 +232,11 @@ export default function Users() {
                                 <tr key={user.id}>
                                     <td><input type='checkbox' checked={selectedUsers.includes(user.id)} onChange={() => toggleUserSelection(user.id)} /></td>
                                     <td>{user.attributes.username}</td>
-                                    <td>{user.attributes.email}</td>
                                     <td>{user.attributes.role.data.attributes.name}</td>
-                                    <td>{formatArabicDate(user.attributes.createdAt)}</td>
+                                    {!isSmallScreen && (<>
+                                        <td>{user.attributes.email}</td>
+                                        <td>{formatArabicDate(user.attributes.createdAt)}</td>
+                                    </>)}
                                     <td>
                                         <Link href={`/dashboard/users/${user.id}`}>
                                             <MdOutlineEdit style={{ color: "#4D4F5C" }} />

@@ -51,6 +51,7 @@ export default function SubCategoriesPage() {
     const [isTokenLoading, setIsTokenLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState(null);
     const [publishFilter, setPublishFilter] = useState('all');
+    const [isSmallScreen, setIsSmallScreen] = useState(false);
     const pageSize = 10;
     const router = useRouter();
     const { getToken, refreshToken } = useAuth();
@@ -73,6 +74,16 @@ export default function SubCategoriesPage() {
         };
 
         fetchToken();
+        const handleResize = () => {
+            setIsSmallScreen(window.innerWidth <= 650);
+        };
+
+        handleResize();
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
     }, [getToken, refreshToken]);
 
     const { loading, error, data, refetch } = useQuery(GET_SUBCATEGORIES, {
@@ -215,9 +226,15 @@ export default function SubCategoriesPage() {
                 <thead>
                     <tr>
                         <th>الاسم</th>
-                        <th>(slug)</th>
-                        <th>الوصف</th>
-                        <th>تاريخ الإنشاء</th>
+                        {!isSmallScreen && (
+                            <>
+                                <th>(slug)</th>
+                                <th>الوصف</th>
+                                <th>تاريخ الإنشاء</th>
+                            </>
+
+                        )}
+
                         <th>الحالة</th>
                         <th>الإعدادات</th>
                     </tr>
@@ -226,9 +243,14 @@ export default function SubCategoriesPage() {
                     {paginatedSubCategories.map(subCategory => (
                         <tr key={subCategory.id}>
                             <td>{subCategory.subName}</td>
-                            <td>{subCategory.slug}</td>
-                            <td>{subCategory.description}</td>
-                            <td>{formatArabicDate(subCategory.createdAt)}</td>
+                            {!isSmallScreen && (
+                                <>
+                                    <td>{subCategory.slug}</td>
+                                    <td>{subCategory.description}</td>
+                                    <td>{formatArabicDate(subCategory.createdAt)}</td>
+                                </>
+                            )}
+
                             <td>{subCategory.isPublished ? "منشور" : "غير منشور"}</td>
                             <td>
                                 <HiPencil onClick={() => router.push(`/dashboard/subCat/${subCategory.id}`)} style={{ cursor: 'pointer', marginLeft: '10px' }} />
