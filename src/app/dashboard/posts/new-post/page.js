@@ -70,6 +70,7 @@ const ADD_POST = gql`
     $tags: [ID]
     $users_permissions_user: ID
     $description: String!
+    $publishedAt: DateTime
   ) {
     createBlog(
       data: {
@@ -81,6 +82,7 @@ const ADD_POST = gql`
         tags: $tags
         users_permissions_user: $users_permissions_user
         description: $description
+        publishedAt: $publishedAt
       }
     ) {
       data {
@@ -122,6 +124,7 @@ const ADD_POST = gql`
             }
           }
           description
+          publishedAt
           createdAt
           updatedAt
         }
@@ -152,6 +155,20 @@ const GET_UPLOADED_FILES = gql`
   }
 `;
 
+const ADD_TAG = gql`
+  mutation CreateAndPublishTag($name: String!, $publishedAt: DateTime!) {
+    createTag(data: { name: $name, publishedAt: $publishedAt }) {
+      data {
+        id
+        attributes {
+          name
+          publishedAt
+        }
+      }
+    }
+  }
+`;
+
 const AddPost = () => {
     const router = useRouter();
     const { getToken } = useAuth();
@@ -166,13 +183,11 @@ const AddPost = () => {
     const [imageUrl, setImageUrl] = useState('');
     const [slug, setSlug] = useState('');
     const [excerpt, setExcerpt] = useState('');
-    const [published, setPublished] = useState(false);
     const [selectedTags, setSelectedTags] = useState([]);
     const [selectedUser, setSelectedUser] = useState('');
     const [addPostError, setAddPostError] = useState(null);
     const [addPostSuccess, setAddPostSuccess] = useState(null);
     const [showDropdown, setShowDropdown] = useState(false);
-    const [hoveredCategory, setHoveredCategory] = useState(null);
     const [selectedCategories, setSelectedCategories] = useState([]);
     const dropdownRef = useRef(null);
 
@@ -181,6 +196,11 @@ const AddPost = () => {
     const [libraryPage, setLibraryPage] = useState(0);
     const [hasMoreImages, setHasMoreImages] = useState(true);
     const [selectedLibraryImage, setSelectedLibraryImage] = useState(null);
+
+    const [slugError, setSlugError] = useState('');
+    const [tagInput, setTagInput] = useState('');
+    const [tagSuggestions, setTagSuggestions] = useState([]);
+    const [isPublished, setIsPublished] = useState(false);
 
     const [addPost] = useMutation(ADD_POST, {
         context: {
@@ -197,6 +217,17 @@ const AddPost = () => {
             setTimeout(() => {
                 router.push('/dashboard/posts');
             }, 3000);
+        },
+    });
+
+    const [createTag] = useMutation(ADD_TAG, {
+        context: {
+            headers: {
+                authorization: token ? `Bearer ${token}` : '',
+            },
+        },
+        onError(error) {
+            setAddPostError(`Error creating tag: ${error.message}`);
         },
     });
 
@@ -220,6 +251,12 @@ const AddPost = () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
+
+    useEffect(() => {
+        // Auto-generate slug from title
+        const generatedSlug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '');
+        setSlug(generatedSlug);
+    }, [title]);
 
     const handleCategorySelect = (categoryId, subcategoryId = null) => {
         setSelectedCategories(prev => {
@@ -320,7 +357,11 @@ const AddPost = () => {
                 featureImageId = selectedLibraryImage;
             }
 
+            // Correctly format the categories
             const formattedCategories = selectedCategories.map(item => item.categoryId);
+
+            // Correctly format the tags
+            const formattedTags = selectedTags.map(tag => tag.id);
 
             await addPost({
                 variables: {
@@ -329,9 +370,10 @@ const AddPost = () => {
                     blog: body,
                     cover: featureImageId,
                     slug,
-                    tags: selectedTags.map((tag) => tag.id),
+                    tags: formattedTags,
                     users_permissions_user: selectedUser,
                     description: excerpt,
+                    publishedAt: isPublished ? new Date().toISOString() : null,
                 },
             });
         } catch (error) {
@@ -346,6 +388,69 @@ const AddPost = () => {
 
     const handleEditorChange = ({ text }) => {
         setBody(text);
+    };
+
+    const handleSlugChange = (e) => {
+        const newSlug = e.target.value;
+        setSlug(newSlug);
+        if (/[^A-Za-z0-9-_.~]/.test(newSlug)) {
+            setSlugError('Slug must match the following: "/^[A-Za-z0-9-_.~]*$/"');
+        } else {
+            setSlugError('');
+        }
+    };
+
+    const handleTagInputChange = (e) => {
+        const input = e.target.value;
+        setTagInput(input);
+
+        if (input.length >= 1) {
+            const suggestions = tagsData.tags.data.filter(tag =>
+                tag.attributes.name.toLowerCase().includes(input.toLowerCase())
+            );
+            setTagSuggestions(suggestions);
+        } else {
+            setTagSuggestions([]);
+        }
+    };
+
+    const addTag = async (tag) => {
+        if (!selectedTags.some(t => t.id === tag.id)) {
+            setSelectedTags([...selectedTags, tag]);
+        }
+        setTagInput('');
+        setTagSuggestions([]);
+    };
+
+    const createNewTag = async () => {
+        try {
+            const { data } = await createTag({
+                variables: {
+                    name: tagInput,
+                    publishedAt: new Date().toISOString()
+                }
+            });
+            if (data && data.createTag && data.createTag.data) {
+                const newTag = {
+                    id: data.createTag.data.id,
+                    attributes: { name: data.createTag.data.attributes.name }
+                };
+                addTag(newTag);
+            } else {
+                throw new Error('Failed to create tag');
+            }
+        } catch (error) {
+            setAddPostError(`Error creating tag: ${error.message}`);
+        }
+    };
+
+    // Modify the MdEditor configuration to hide the preview
+    const editorConfig = {
+        view: {
+            menu: true,
+            md: true,
+            html: false  // This hides the preview
+        }
     };
 
     useEffect(() => {
@@ -400,7 +505,12 @@ const AddPost = () => {
                     {/* Slug */}
                     <div className="form-group">
                         <label>الslug:</label>
-                        <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} required />
+                        <input
+                            type="text" value={slug}
+                            onChange={handleSlugChange}
+                            required
+                        />
+                        {slugError && <p className="error-message">{slugError}</p>}
                     </div>
                     {/* Categories */}
                     <div className="form-group">
@@ -424,53 +534,44 @@ const AddPost = () => {
                                         اختر الأقسام
                                     </div>
                                     {showDropdown && (
-                                        <div
-                                            style={{
-                                                position: 'absolute',
-                                                top: '100%',
-                                                left: 0,
-                                                right: 0,
-                                                backgroundColor: 'white',
-                                                border: '1px solid #ccc',
-                                                zIndex: 1000,
-                                                maxHeight: '300px',
-                                                overflowY: 'auto'
-                                            }}
-                                        >
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: '100%',
+                                            left: 0,
+                                            right: 0,
+                                            backgroundColor: 'white',
+                                            border: '1px solid #ccc',
+                                            zIndex: 1000,
+                                            maxHeight: '300px',
+                                            overflowY: 'auto'
+                                        }}>
                                             {categoriesData.categories.data.map((cat) => (
-                                                <div
-                                                    key={cat.id}
-                                                    onMouseEnter={() => setHoveredCategory(cat.id)}
-                                                    onMouseLeave={() => setHoveredCategory(null)}
-                                                    style={{
-                                                        padding: '10px',
-                                                        cursor: 'pointer',
-                                                        backgroundColor: hoveredCategory === cat.id ? '#f0f0f0' : 'white'
-                                                    }}
-                                                >
+                                                <div key={cat.id} style={{ padding: '10px' }}>
                                                     <div
                                                         onClick={() => handleCategorySelect(cat.id)}
                                                         style={{
-                                                            fontWeight: selectedCategories.some(item => item.categoryId === cat.id && !item.subcategoryId) ? 'bold' : 'normal'
+                                                            fontWeight: selectedCategories.some(item => item.categoryId === cat.id && !item.subcategoryId) ? 'bold' : 'normal',
+                                                            cursor: 'pointer'
                                                         }}
                                                     >
                                                         {cat.attributes.name}
                                                     </div>
-                                                    {(hoveredCategory === cat.id || selectedCategories.some(item => item.categoryId === cat.id)) &&
-                                                        cat.attributes.sub_categories.data.length > 0 && (
-                                                            <div style={{ marginLeft: '20px', fontSize: '0.9em', color: '#666' }}>
-                                                                {cat.attributes.sub_categories.data.map(subcat => (
-                                                                    <div
-                                                                        key={subcat.id}
-                                                                        onClick={() => handleCategorySelect(cat.id, subcat.id)}
-                                                                        style={{
-                                                                            fontWeight: selectedCategories.some(item => item.categoryId === cat.id && item.subcategoryId === subcat.id) ? 'bold' : 'normal'
-                                                                        }}
-                                                                    >
-                                                                        {subcat.attributes.subName}</div>
-                                                                ))}
-                                                            </div>
-                                                        )}
+                                                    {cat.attributes.sub_categories.data.length > 0 && (
+                                                        <div style={{ marginLeft: '20px', fontSize: '0.9em', color: '#666' }}>
+                                                            {cat.attributes.sub_categories.data.map(subcat => (
+                                                                <div
+                                                                    key={subcat.id}
+                                                                    onClick={() => handleCategorySelect(cat.id, subcat.id)}
+                                                                    style={{
+                                                                        fontWeight: selectedCategories.some(item => item.categoryId === cat.id && item.subcategoryId === subcat.id) ? 'bold' : 'normal',
+                                                                        cursor: 'pointer'
+                                                                    }}
+                                                                >
+                                                                    {subcat.attributes.subName}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
@@ -548,33 +649,33 @@ const AddPost = () => {
                             style={{ height: '300px' }}
                             renderHTML={(text) => mdParser.render(text)}
                             onChange={handleEditorChange}
+                            config={editorConfig}
                         />
                     </div>
                     {/* Tags */}
                     <div className="form-group">
                         <label>الكلمات الدليلية:</label>
-                        {loadingTags ? (
-                            null
-                        ) : tagsError ? (
-                            <p>خطأ في جلب البيانات: {tagsError.message}</p>
-                        ) : (
-                            <select
-                                className="select-box"
-                                onChange={(e) => {
-                                    const selectedTagId = e.target.value;
-                                    const selectedTag = tagsData.tags.data.find((tag) => tag.id === selectedTagId);
-                                    if (selectedTag && !selectedTags.some(tag => tag.id === selectedTag.id)) {
-                                        setSelectedTags((prevTags) => [...prevTags, selectedTag]);
-                                    }
-                                }}
-                            >
-                                <option value="">اختر كلمة دليلية</option>
-                                {tagsData.tags.data.map((tag) => (
-                                    <option key={tag.id} value={tag.id}>
+                        <input
+                            type="text"
+                            value={tagInput}
+                            onChange={handleTagInputChange}
+                            placeholder="ابحث عن كلمة دليلية أو أضف جديدة"
+                        />
+                        {tagSuggestions.length > 0 && (
+                            <ul style={{ listStyle: 'none', padding: 0 }}>
+                                {tagSuggestions.map(tag => (
+                                    <li
+                                        key={tag.id}
+                                        onClick={() => addTag(tag)}
+                                        style={{ cursor: 'pointer', padding: '5px', backgroundColor: '#f0f0f0', margin: '2px 0' }}
+                                    >
                                         {tag.attributes.name}
-                                    </option>
+                                    </li>
                                 ))}
-                            </select>
+                            </ul>
+                        )}
+                        {tagInput && !tagSuggestions.length && (
+                            <button type="button" onClick={createNewTag}>إنشاء كلمة دليلية جديدة: {tagInput}</button>
                         )}
                         {selectedTags.length > 0 && (
                             <div>
@@ -588,6 +689,17 @@ const AddPost = () => {
                                 ))}
                             </div>
                         )}
+                    </div>
+                    {/* Publish Checkbox */}
+                    <div className="form-group">
+                        <label>
+                            <input
+                                type="checkbox"
+                                checked={isPublished}
+                                onChange={(e) => setIsPublished(e.target.checked)}
+                            />
+                            نشر المقالة الآن
+                        </label>
                     </div>
                     <button className="sub-button" type="submit">
                         اضافة
@@ -624,5 +736,4 @@ const AddPost = () => {
         </>
     );
 };
-
 export default AddPost;

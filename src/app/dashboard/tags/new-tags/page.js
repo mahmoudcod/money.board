@@ -6,18 +6,18 @@ import { useAuth } from '@/app/auth';
 import { useRouter } from 'next/navigation';
 
 const ADD_TAG = gql`
-  mutation CreateTag($name: String!) {
-    createTag(data: { name: $name }) {
+  mutation CreateAndPublishTag($name: String!, $publishedAt: DateTime!) {
+    createTag(data: { name: $name, publishedAt: $publishedAt }) {
       data {
         id
         attributes {
           name
+          publishedAt
         }
       }
     }
   }
 `;
-
 const AddTag = () => {
   const router = useRouter();
   const { getToken } = useAuth();
@@ -33,30 +33,34 @@ const AddTag = () => {
       },
     },
   });
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage(null);
     setIsLoading(true);
     try {
-      await addTag({
+      const result = await addTag({
         variables: {
           name,
+          publishedAt: new Date().toISOString(),
         },
       });
-      // Clear form fields and redirect to /dashboard/tags after successful submission
-      setName('');
-      setSuccessMessage("تمت إضافة العلامة بنجاح");
-      setTimeout(() => {
-        router.push('/dashboard/tags');
-      }, 2000);
+
+      // Check if the tag was successfully created and published
+      if (result.data.createTag.data.attributes.publishedAt) {
+        setName('');
+        setSuccessMessage("تمت إضافة ونشر العلامة بنجاح");
+        setTimeout(() => {
+          router.push('/dashboard/tags');
+        }, 2000);
+      } else {
+        setErrorMessage("تم إنشاء العلامة ولكن فشل النشر");
+      }
     } catch (error) {
-      setErrorMessage("خطأ أثناء إضافة العلامة: " + error.message);
+      setErrorMessage("خطأ أثناء إضافة ونشر العلامة: " + error.message);
     } finally {
       setIsLoading(false);
     }
   };
-
   return (
     <>
       <main className="head">
