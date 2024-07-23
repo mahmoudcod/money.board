@@ -20,16 +20,20 @@ const GET_USERS = gql`
         attributes {
           username
           email
-          role{
-            data{
-                id
-                attributes{
-                    name
-                }
-
+          role {
+            data {
+              id
+              attributes {
+                name
+              }
             }
           }
           createdAt
+          posts {
+            data {
+              id
+            }
+          }
         }
       }
     }
@@ -105,7 +109,7 @@ export default function Users() {
         };
     }, [currentPage, refetch]);
 
-    if (loading) return <div class="loader"></div>;
+    if (loading) return <div className="loader"></div>;
     if (error) {
         return (
             <div className="error-message">
@@ -217,10 +221,11 @@ export default function Users() {
                     <table className="table">
                         <thead>
                             <tr>
-                                <th> <input type="checkbox" checked={selectedUsers.length === users.length} onChange={selectAllUsers} /></th>
+                                <th><input type="checkbox" checked={selectedUsers.length === users.length} onChange={selectAllUsers} /></th>
                                 <th>اسم المستخدم</th>
                                 <th>الأدوار</th>
                                 {!isSmallScreen && (<>
+                                    <th>عدد المنشورات</th>
                                     <th>البريد الإلكتروني</th>
                                     <th>تاريخ الإنشاء</th>
                                 </>)}
@@ -234,6 +239,7 @@ export default function Users() {
                                     <td>{user.attributes.username}</td>
                                     <td>{user.attributes.role.data.attributes.name}</td>
                                     {!isSmallScreen && (<>
+                                        <td>{user.attributes.posts.data.length}</td>
                                         <td>{user.attributes.email}</td>
                                         <td>{formatArabicDate(user.attributes.createdAt)}</td>
                                     </>)}

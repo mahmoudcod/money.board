@@ -5,7 +5,6 @@ import { useAuth } from '@/app/auth';
 import { RiDeleteBin6Line } from "react-icons/ri";
 import { useQuery, useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
-import Link from 'next/link';
 
 const GET_TAGS = gql`
   query GetTags($start: Int!, $limit: Int!) {
@@ -20,6 +19,11 @@ const GET_TAGS = gql`
           name
           createdAt
           publishedAt
+       posts {
+            data {
+              id
+            }
+          }
         }
       }
       meta {
@@ -57,16 +61,12 @@ export default function Tags() {
             setIsTokenLoading(true);
             try {
                 let currentToken = getToken();
-                console.log("Initial token:", currentToken);
                 if (!currentToken) {
-                    console.log("No token found, attempting to refresh...");
                     currentToken = await refreshToken();
-                    console.log("Refreshed token:", currentToken);
                 }
                 setToken(currentToken);
             } catch (error) {
                 console.error("Error fetching token:", error);
-                setErrorMessage("Error fetching authentication token. Please try logging in again.");
             } finally {
                 setIsTokenLoading(false);
             }
@@ -129,6 +129,7 @@ export default function Tags() {
     const allTags = data.tags.data.map(tag => ({
         id: tag.id,
         ...tag.attributes,
+        blogCount: tag.attributes.posts.data.length,
         isPublished: !!tag.attributes.publishedAt
     }));
 
@@ -227,11 +228,11 @@ export default function Tags() {
         <>
             <main className="head">
                 <div className="head-title">
-                    <h3 className="title">العلامات: {totalCount}</h3>
-                    <Link href="/dashboard/tags/new-tags" className="addButton">إضافة علامة جديدة</Link>
+                    <h3 className="title">الكلمات الدليله: {totalCount}</h3>
+                    {/* <Link href="/dashboard/tags/new-tags" className="addButton">إضافة علامة جديدة</Link> */}
                 </div>
 
-                <div className="filter-controls">
+                {/* <div className="filter-controls">
                     <select
                         className='select-box'
                         value={publishFilter}
@@ -244,7 +245,7 @@ export default function Tags() {
                         <option value="published">العلامات المنشورة</option>
                         <option value="unpublished">العلامات غير المنشورة</option>
                     </select>
-                </div>
+                </div> */}
 
                 {selectedTags.length > 0 && (
                     <button className='delete-button' onClick={deleteSelectedTags}> <MdDelete /> حذف جميع المختار </button>
@@ -257,9 +258,10 @@ export default function Tags() {
                         <thead>
                             <tr>
                                 <th><input type="checkbox" checked={selectedTags.length === paginatedTags.length} onChange={selectAllTags} /></th>
-                                <th>اسم العلامة</th>
+                                <th>اسم الكلمة الدليله</th>
                                 <th>تاريخ النشر</th>
-                                <th>الحالة</th>
+                                <th> عدد المقالات</th>
+                                {/* <th>الحالة</th> */}
                                 <th>الإعدادات</th>
                             </tr>
                         </thead>
@@ -269,11 +271,12 @@ export default function Tags() {
                                     <td><input type='checkbox' checked={selectedTags.includes(item.id)} onChange={() => toggleTagSelection(item.id)} /></td>
                                     <td>{item.name}</td>
                                     <td>{formatArabicDate(item.createdAt)}</td>
-                                    <td>{item.isPublished ? "منشور" : "غير منشور"}</td>
+                                    <td>{item.blogCount}</td>
+                                    {/* <td>{item.isPublished ? "منشور" : " مسودة"}</td> */}
                                     <td>
-                                        <Link href={`/dashboard/tags/${item.id}`}>
+                                        {/* <Link href={`/dashboard/tags/${item.id}`}>
                                             <MdOutlineEdit style={{ color: "#4D4F5C" }} />
-                                        </Link>
+                                        </Link> */}
                                         <RiDeleteBin6Line onClick={() => handleDeleteTag(item.id)} className='delete' style={{ margin: "0px 10px" }} />
                                     </td>
                                 </tr>

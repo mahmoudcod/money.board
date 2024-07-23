@@ -4,11 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useQuery, useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
 import { useAuth } from '@/app/auth';
-import MarkdownIt from 'markdown-it';
 import MdEditor from 'react-markdown-editor-lite';
 import 'react-markdown-editor-lite/lib/index.css';
-
-const mdParser = new MarkdownIt();
 
 const GET_POLICE = gql`
   query getPolice {
@@ -127,48 +124,48 @@ const EditDataPage = () => {
                 {successMessage && <div className="success-message">{successMessage}</div>}
                 <form className="content" onSubmit={handleSubmit}>
                     <div className="form-group" style={{ width: '100%' }}>
-                        <label>سياسة الإعلان:</label>
+                        <label className='ser' >سياسة الإعلان:</label>
                         <MdEditor
                             value={advertising}
                             style={{ height: '300px' }}
-                            renderHTML={(text) => mdParser.render(text)}
                             onChange={({ text }) => setAdvertising(text)}
+                            view={{ menu: true, md: true, html: false }}
                         />
                     </div>
                     <div className="form-group" style={{ width: '100%' }}>
-                        <label>سياسة النشر:</label>
+                        <label className='ser'>سياسة النشر:</label>
                         <MdEditor
                             value={publish}
                             style={{ height: '300px' }}
-                            renderHTML={(text) => mdParser.render(text)}
                             onChange={({ text }) => setPublish(text)}
+                            view={{ menu: true, md: true, html: false }}
                         />
                     </div>
                     <div className="form-group" style={{ width: '100%' }}>
-                        <label>سياسة الاستخدام:</label>
+                        <label className='ser'>سياسة الاستخدام:</label>
                         <MdEditor
                             value={useage}
                             style={{ height: '300px' }}
-                            renderHTML={(text) => mdParser.render(text)}
                             onChange={({ text }) => setUseage(text)}
+                            view={{ menu: true, md: true, html: false }}
                         />
                     </div>
                     <div className="form-group" style={{ width: '100%' }}>
-                        <label>سياسة الخصوصية:</label>
+                        <label className='ser'>سياسة الخصوصية:</label>
                         <MdEditor
                             value={privacy}
                             style={{ height: '300px' }}
-                            renderHTML={(text) => mdParser.render(text)}
                             onChange={({ text }) => setPrivacy(text)}
+                            view={{ menu: true, md: true, html: false }}
                         />
                     </div>
                     <div className="form-group" style={{ width: '100%' }}>
-                        <label>عن الموقع:</label>
+                        <label className='ser'>عن الموقع:</label>
                         <MdEditor
                             value={about}
                             style={{ height: '300px' }}
-                            renderHTML={(text) => mdParser.render(text)}
                             onChange={({ text }) => setAbout(text)}
+                            view={{ menu: true, md: true, html: false }}
                         />
                     </div>
                     <button className='sub-button' type="submit" disabled={isLoading}>

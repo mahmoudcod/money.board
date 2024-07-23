@@ -210,6 +210,7 @@ export default function Post() {
 
     return (
         <>
+
             <main className="head">
                 <input
                     type="text"
@@ -237,7 +238,7 @@ export default function Post() {
                     >
                         <option value="all">جميع المقالات</option>
                         <option value="published">المقالات المنشورة</option>
-                        <option value="unpublished">المقالات غير المنشورة</option>
+                        <option value="unpublished">المقالات  مسودة</option>
                     </select>
                 </div>
 

@@ -198,7 +198,7 @@
 
 
 .head .title {
-    font-size: 26px;
+    font-size: 14px;
     font-weight: 700;
     color: #465260;
 }
@@ -236,11 +236,12 @@ button.active-filter {
 
 @media screen and (max-width: 576px) {
     .head {
-        max-width: 300px
+        max-width: 100%;
+        margin: 20px;
     }
 
     .table-container {
-        max-width: 300px
+        max-width: 100%
     }
 
 
@@ -417,6 +418,11 @@ textarea {
     width: 70%;
 }
 
+.form-group .ser {
+    font-size: 22px;
+    margin-top: 30px;
+}
+
 .slug-andCat {
     display: flex;
 }
@@ -440,8 +446,8 @@ textarea {
 
 @media screen and (max-width: 568px) {
     .content {
-        padding: 20px 10px;
-        width: 300px;
+        padding: 20px;
+        width: 100%;
     }
 
     .form-group {
@@ -596,10 +602,14 @@ textarea {
 .name-email {
     display: flex;
     justify-content: space-between;
+    margin-bottom: 5px;
+    border-bottom: 1px solid #eee;
+    font-size: 14px;
 }
 
 .message {
     margin-top: 10px;
+    font-size: 14px;
     word-wrap: break-word;
 }
 
@@ -612,6 +622,9 @@ textarea {
         text-align: left;
         margin-top: 5px;
     } */
+    .name-email {
+        flex-direction: column;
+    }
 }
 
 

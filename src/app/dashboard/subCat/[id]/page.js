@@ -14,6 +14,11 @@ const GET_SUBCATEGORY = gql`
           subName
           slug
           description
+          category {
+            data {
+              id
+            }
+          }
         }
       }
     }
@@ -26,6 +31,8 @@ const UPDATE_SUBCATEGORY = gql`
     $subName: String!
     $slug: String!
     $description: String
+    $category: ID
+    $publishedAt: DateTime!
   ) {
     updateSubCategory(
       id: $id
@@ -33,10 +40,25 @@ const UPDATE_SUBCATEGORY = gql`
         subName: $subName
         slug: $slug
         description: $description
+        category: $category
+        publishedAt: $publishedAt
       }
     ) {
       data {
         id
+      }
+    }
+  }
+`;
+
+const GET_CATEGORIES = gql`
+  query getCategories {
+    categories {
+      data {
+        id
+        attributes {
+          name
+        }
       }
     }
   }
@@ -51,6 +73,7 @@ const EditSubCategoryPage = ({ params }) => {
     const [subName, setSubName] = useState('');
     const [slug, setSlug] = useState('');
     const [description, setDescription] = useState('');
+    const [categoryId, setCategoryId] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
 
@@ -59,6 +82,13 @@ const EditSubCategoryPage = ({ params }) => {
         onError: (error) => {
             console.error('Error fetching subcategory:', error);
             setErrorMessage('حدث خطأ أثناء جلب بيانات الفئة الفرعية.');
+        },
+    });
+
+    const { data: categoriesData } = useQuery(GET_CATEGORIES, {
+        onError: (error) => {
+            console.error('Error fetching categories:', error);
+            setErrorMessage('حدث خطأ أثناء جلب الفئات.');
         },
     });
 
@@ -90,13 +120,13 @@ const EditSubCategoryPage = ({ params }) => {
             setSubName(subCategory.subName || '');
             setSlug(subCategory.slug || '');
             setDescription(subCategory.description || '');
+            setCategoryId(subCategory.category?.data?.id || '');
         }
     }, [loading, data]);
 
     const handleSubNameChange = (e) => {
         const newSubName = e.target.value;
         setSubName(newSubName);
-        // Automatically update slug when subName changes
         setSlug(newSubName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
     };
 
@@ -109,10 +139,12 @@ const EditSubCategoryPage = ({ params }) => {
                     subName,
                     slug,
                     description,
+                    category: categoryId,
+                    publishedAt: new Date().toISOString()
                 },
             });
 
-            setSuccessMessage('تم تحديث الفئة الفرعية بنجاح.');
+            setSuccessMessage('تم تحديث ونشر الفئة الفرعية بنجاح.');
             setTimeout(() => {
                 if (!errorMessage) {
                     router.push(`/dashboard/subCat`);
@@ -148,8 +180,23 @@ const EditSubCategoryPage = ({ params }) => {
                         rows="4"
                     />
                 </div>
+                <div className="form-group">
+                    <label>الفئة الرئيسية:</label>
+                    <select
+                        value={categoryId}
+                        onChange={(e) => setCategoryId(e.target.value)}
+                        required
+                    >
+                        <option value="">اختر الفئة الرئيسية</option>
+                        {categoriesData?.categories.data.map((category) => (
+                            <option key={category.id} value={category.id}>
+                                {category.attributes.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
                 <button className="sub-button" type="submit">
-                    حفظ التغييرات
+                    حفظ  التغييرات
                 </button>
             </form>
         </main>

@@ -1,19 +1,34 @@
 'use client'
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
 import { useAuth } from '@/app/auth';
 
 const CREATE_SUBCATEGORY = gql`
-  mutation createSubCategory($subName: String!, $slug: String!, $description: String) {
+  mutation createSubCategory($subName: String!, $slug: String!, $description: String, $category: ID, $publishedAt: DateTime!) {
     createSubCategory(data: { 
       subName: $subName, 
       slug: $slug, 
-      description: $description 
+      description: $description,
+      category: $category,
+      publishedAt: $publishedAt
     }) {
       data {
         id
+      }
+    }
+  }
+`;
+
+const GET_CATEGORIES = gql`
+  query getCategories {
+    categories {
+      data {
+        id
+        attributes {
+          name
+        }
       }
     }
   }
@@ -27,8 +42,16 @@ const CreateSubCategoryPage = () => {
     const [subName, setSubName] = useState('');
     const [slug, setSlug] = useState('');
     const [description, setDescription] = useState('');
+    const [categoryId, setCategoryId] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
+
+    const { data: categoriesData } = useQuery(GET_CATEGORIES, {
+        onError: (error) => {
+            console.error('Error fetching categories:', error);
+            setErrorMessage('حدث خطأ أثناء جلب الفئات.');
+        },
+    });
 
     const [createSubCategory, { error: createError }] = useMutation(CREATE_SUBCATEGORY, {
         context: {
@@ -45,7 +68,7 @@ const CreateSubCategoryPage = () => {
                 setSuccessMessage('تم إنشاء الفئة الفرعية بنجاح.');
                 setTimeout(() => {
                     if (!errorMessage) {
-                        router.push(`/dashboard/subcategory`);
+                        router.push(`/dashboard/subCat`);
                     }
                 }, 2000);
             }
@@ -55,7 +78,6 @@ const CreateSubCategoryPage = () => {
     const handleSubNameChange = (e) => {
         const newSubName = e.target.value;
         setSubName(newSubName);
-        // Automatically generate a slug from the subName
         setSlug(newSubName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
     };
 
@@ -67,15 +89,10 @@ const CreateSubCategoryPage = () => {
                     subName,
                     slug,
                     description,
+                    category: categoryId,
+                    publishedAt: new Date().toISOString() // This will set the current date and time
                 },
             });
-
-            setSuccessMessage('تم إنشاء الفئة الفرعية بنجاح.');
-            setTimeout(() => {
-                if (!errorMessage) {
-                    router.push(`/dashboard/subCat`);
-                }
-            }, 2000);
         } catch (error) {
             console.error(error);
             setErrorMessage('حدث خطأ أثناء إنشاء الفئة الفرعية.');
@@ -106,8 +123,23 @@ const CreateSubCategoryPage = () => {
                         rows="4"
                     />
                 </div>
+                <div className="form-group">
+                    <label>الفئة الرئيسية:</label>
+                    <select
+                        value={categoryId}
+                        onChange={(e) => setCategoryId(e.target.value)}
+                        required
+                    >
+                        <option value="">اختر الفئة الرئيسية</option>
+                        {categoriesData?.categories.data.map((category) => (
+                            <option key={category.id} value={category.id}>
+                                {category.attributes.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
                 <button className="sub-button" type="submit">
-                    إنشاء الفئة الفرعية
+                    انشاء
                 </button>
             </form>
         </main>

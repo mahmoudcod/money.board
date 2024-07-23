@@ -1,15 +1,12 @@
 'use client'
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import gql from 'graphql-tag';
 import { FiPlus } from 'react-icons/fi';
 import { useAuth } from '@/app/auth';
 import { useRouter } from 'next/navigation';
-import MarkdownIt from 'markdown-it';
 import MdEditor from 'react-markdown-editor-lite';
 import 'react-markdown-editor-lite/lib/index.css';
-
-const mdParser = new MarkdownIt();
 
 const GET_ROLES = gql`
   query GetRoles {
@@ -92,6 +89,12 @@ const AddUser = () => {
             },
         },
     });
+    useEffect(() => {
+        // Auto-generate slug from title
+        const generatedSlug = username.toLowerCase().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '');
+        setSlug(generatedSlug);
+    }, [username]);
+
 
     const { data: libraryData, fetchMore } = useQuery(GET_UPLOADED_FILES, {
         variables: { limit: 20, start: 0 },
@@ -206,7 +209,7 @@ const AddUser = () => {
         });
     };
 
-    if (rolesLoading) return <p>جاري تحميل الأدوار...</p>;
+    if (rolesLoading) return null;
     if (rolesError) return <p>حدث خطأ أثناء تحميل الأدوار: {rolesError.message}</p>;
 
     const roles = rolesData?.usersPermissionsRoles?.data || [];
@@ -290,8 +293,9 @@ const AddUser = () => {
                         <MdEditor
                             value={description}
                             style={{ height: '300px' }}
-                            renderHTML={(text) => mdParser.render(text)}
                             onChange={handleEditorChange}
+                            view={{ menu: true, md: true, html: false }}
+                            canView={{ menu: true, md: true, html: false, fullScreen: false, hideMenu: true }}
                         />
                     </div>
                     <button className='sub-button' type="submit">اضافة</button>

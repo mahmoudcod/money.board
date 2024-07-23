@@ -67,7 +67,6 @@ export default function SubCategoriesPage() {
                 setToken(currentToken);
             } catch (error) {
                 console.error("Error fetching token:", error);
-                setErrorMessage("Error fetching authentication token. Please try logging in again.");
             } finally {
                 setIsTokenLoading(false);
             }
@@ -218,7 +217,7 @@ export default function SubCategoriesPage() {
                 >
                     <option value="all">جميع الفئات الفرعية</option>
                     <option value="published">الفئات الفرعية المنشورة</option>
-                    <option value="unpublished">الفئات الفرعية غير المنشورة</option>
+                    <option value="unpublished">الفئات الفرعية  المسودة</option>
                 </select>
             </div>
 
@@ -251,7 +250,7 @@ export default function SubCategoriesPage() {
                                 </>
                             )}
 
-                            <td>{subCategory.isPublished ? "منشور" : "غير منشور"}</td>
+                            <td>{subCategory.isPublished ? "منشور" : " مسودة"}</td>
                             <td>
                                 <HiPencil onClick={() => router.push(`/dashboard/subCat/${subCategory.id}`)} style={{ cursor: 'pointer', marginLeft: '10px' }} />
                                 <RiDeleteBin6Line onClick={() => handleDeleteSubCategory(subCategory.id)} className='delete' style={{ cursor: 'pointer' }} />

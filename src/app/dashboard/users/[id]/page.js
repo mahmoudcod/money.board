@@ -113,6 +113,8 @@ const EditUserPage = ({ params }) => {
     const [confirmed, setConfirmed] = useState(true);
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
+    const [password, setPassword] = useState('');
+    const [showPasswordField, setShowPasswordField] = useState(false);
 
     const [showImageLibrary, setShowImageLibrary] = useState(false);
     const [libraryImages, setLibraryImages] = useState([]);
@@ -148,6 +150,12 @@ const EditUserPage = ({ params }) => {
             setImageUrl(user.cover?.data?.attributes?.url);
         }
     }, [loading, data]);
+
+    useEffect(() => {
+        // Auto-generate slug from title
+        const generatedSlug = username.toLowerCase().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '');
+        setSlug(generatedSlug);
+    }, [username]);
 
     const handleImageDrop = (e) => {
         e.preventDefault();
@@ -209,6 +217,7 @@ const EditUserPage = ({ params }) => {
                         cover: coverId,
                         slug,
                         confirmed,
+                        ...(password && { password }), // Only include password if it's provided
                     },
                 },
             });
@@ -318,12 +327,29 @@ const EditUserPage = ({ params }) => {
                     </div>
 
                     <div className="form-group">
+                        <button type="button" onClick={() => setShowPasswordField(!showPasswordField)}>
+                            {showPasswordField ? 'إلغاء تغيير كلمة المرور' : 'تغيير كلمة المرور'}
+                        </button>
+                        {showPasswordField && (
+                            <div>
+                                <label>كلمة المرور الجديدة:</label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="form-group">
                         <label>نبذة عن المستخدم:</label>
                         <MdEditor
                             value={description}
                             style={{ height: '300px' }}
-                            renderHTML={(text) => mdParser.render(text)}
                             onChange={handleEditorChange}
+                            view={{ menu: true, md: true, html: false }}
+                            canView={{ menu: true, md: true, html: false, fullScreen: false, hideMenu: true }}
                         />
                     </div>
                     <div className="form-group">
@@ -342,20 +368,6 @@ const EditUserPage = ({ params }) => {
                     <div className="form-group">
                         <label>Slug:</label>
                         <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} />
-                    </div>
-                    <div className="form-group">
-                        <label>Confirmed:</label>
-                        <label className="switcher is-normal">
-                            <input
-                                type="checkbox"
-                                checked={confirmed}
-                                onChange={(e) => setConfirmed(e.target.checked)}
-                                className="switcher-input"
-                            />
-                            <span className="switcher-body">
-                                <span className="switcher-handle"></span>
-                            </span>
-                        </label>
                     </div>
                     <button className='sub-button' type="submit">حفظ التغييرات</button>
                 </form>

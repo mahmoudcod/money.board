@@ -84,8 +84,7 @@ export default function CategoriesPage() {
                 }
                 setToken(currentToken);
             } catch (error) {
-                console.error("Error fetching token:", error);
-                setErrorMessage("Error fetching authentication token. Please try logging in again.");
+
             } finally {
                 setIsTokenLoading(false);
             }
@@ -244,7 +243,7 @@ export default function CategoriesPage() {
                 >
                     <option value="all">جميع الفئات</option>
                     <option value="published">الفئات المنشورة</option>
-                    <option value="unpublished">الفئات غير المنشورة</option>
+                    <option value="unpublished">الفئات  مسودة</option>
                 </select>
             </div>
 
@@ -288,7 +287,7 @@ export default function CategoriesPage() {
                                     <td>{formatArabicDate(category.createdAt)}</td>
                                 </>
                             )}
-                            <td>{category.isPublished ? "منشور" : "غير منشور"}</td>
+                            <td>{category.isPublished ? "منشور" : " مسودة"}</td>
                             <td>
                                 <HiPencil onClick={() => router.push(`/dashboard/category/${category.id}`)} style={{ cursor: 'pointer', marginLeft: '10px' }} />
                                 <RiDeleteBin6Line onClick={() => handleDeleteCategory(category.id)} className='delete' style={{ cursor: 'pointer' }} />

@@ -145,6 +145,20 @@ const GET_UPLOADED_FILES = gql`
   }
 `;
 
+const ADD_TAG = gql`
+  mutation CreateAndPublishTag($name: String!, $publishedAt: DateTime!) {
+    createTag(data: { name: $name, publishedAt: $publishedAt }) {
+      data {
+        id
+        attributes {
+          name
+          publishedAt
+        }
+      }
+    }
+  }
+`;
+
 const EditPostPage = ({ params }) => {
     const router = useRouter();
     const { getToken } = useAuth();
@@ -171,6 +185,10 @@ const EditPostPage = ({ params }) => {
     const [libraryPage, setLibraryPage] = useState(0);
     const [hasMoreImages, setHasMoreImages] = useState(true);
     const [selectedLibraryImage, setSelectedLibraryImage] = useState(null);
+
+    const [slugError, setSlugError] = useState('');
+    const [tagInput, setTagInput] = useState('');
+    const [tagSuggestions, setTagSuggestions] = useState([]);
 
     const { loading, error: postError, data } = useQuery(GET_POST, {
         variables: { id: id },
@@ -205,6 +223,17 @@ const EditPostPage = ({ params }) => {
         },
     });
 
+    const [createTag] = useMutation(ADD_TAG, {
+        context: {
+            headers: {
+                authorization: token ? `Bearer ${token}` : '',
+            },
+        },
+        onError(error) {
+            setErrorMessage(`Error creating tag: ${error.message}`);
+        },
+    });
+
     const { data: libraryData, fetchMore } = useQuery(GET_UPLOADED_FILES, {
         variables: { limit: 20, start: 0 },
         onCompleted: (data) => {
@@ -224,7 +253,7 @@ const EditPostPage = ({ params }) => {
             setSelectedTags(post.tags?.data || []);
             setSelectedCategories(post.categories?.data?.map(cat => ({
                 categoryId: cat.id,
-                subcategoryId: null  // You might need to adjust this if you have subcategory data
+                subcategoryId: null
             })) || []);
             if (post.cover && post.cover.data) {
                 setImageUrl(post.cover.data.attributes.url);
@@ -244,6 +273,7 @@ const EditPostPage = ({ params }) => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
+
 
     const handleEditorChange = ({ text }) => {
         setBody(text);
@@ -382,6 +412,69 @@ const EditPostPage = ({ params }) => {
         setSelectedTags((prevTags) => prevTags.filter((tag) => tag.id !== tagId));
     };
 
+    const handleSlugChange = (e) => {
+        const newSlug = e.target.value;
+        setSlug(newSlug);
+        if (/[^A-Za-z0-9-_.~]/.test(newSlug)) {
+            setSlugError('Slug must match the following: "/^[A-Za-z0-9-_.~]*$/"');
+        } else {
+            setSlugError('');
+        }
+    };
+
+    const handleTagInputChange = (e) => {
+        const input = e.target.value;
+        setTagInput(input);
+
+        if (input.length >= 1) {
+            const suggestions = tagsData.tags.data.filter(tag =>
+                tag.attributes.name.toLowerCase().includes(input.toLowerCase())
+            );
+            setTagSuggestions(suggestions);
+        } else {
+            setTagSuggestions([]);
+        }
+    };
+
+    const addTag = async (tag) => {
+        if (!selectedTags.some(t => t.id === tag.id)) {
+            setSelectedTags([...selectedTags, tag]);
+        }
+        setTagInput('');
+        setTagSuggestions([]);
+    };
+
+    const createNewTag = async () => {
+        try {
+            const { data } = await createTag({
+                variables: {
+                    name: tagInput,
+                    publishedAt: new Date().toISOString()
+                }
+            });
+            if (data && data.createTag && data.createTag.data) {
+                const newTag = {
+                    id: data.createTag.data.id,
+                    attributes: { name: data.createTag.data.attributes.name }
+                };
+                addTag(newTag);
+            } else {
+                throw new Error('Failed to create tag');
+            }
+        } catch (error) {
+            setErrorMessage(`Error creating tag: ${error.message}`);
+        }
+    };
+
+    // Modify the MdEditor configuration to hide the preview
+    const editorConfig = {
+        view: {
+            menu: true,
+            md: true,
+            html: false  // This hides the preview
+        }
+    };
+
     return (
         <>
             <main className="head">
@@ -437,7 +530,13 @@ const EditPostPage = ({ params }) => {
                     </div>
                     <div className="form-group">
                         <label>الslug:</label>
-                        <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} required />
+                        <input
+                            type="text"
+                            value={slug}
+                            onChange={handleSlugChange}
+                            required
+                        />
+                        {slugError && <p className="error-message">{slugError}</p>}
                     </div>
                     <div className="form-group">
                         <label>الأقسام:</label>
@@ -583,30 +682,32 @@ const EditPostPage = ({ params }) => {
                             style={{ height: '300px' }}
                             renderHTML={(text) => mdParser.render(text)}
                             onChange={handleEditorChange}
+                            config={editorConfig}
                         />
                     </div>
                     <div className="form-group">
                         <label>الكلمات الدليلية:</label>
-                        {loadingTags ? (
-                            null
-                        ) : (
-                            <select
-                                className="select-box"
-                                onChange={(e) => {
-                                    const selectedTagId = e.target.value;
-                                    const selectedTag = tagsData.tags.data.find((tag) => tag.id === selectedTagId);
-                                    if (selectedTag && !selectedTags.some(tag => tag.id === selectedTag.id)) {
-                                        setSelectedTags((prevTags) => [...prevTags, selectedTag]);
-                                    }
-                                }}
-                            >
-                                <option value="">اختر كلمة دليلية</option>
-                                {tagsData.tags.data.map((tag) => (
-                                    <option key={tag.id} value={tag.id}>
+                        <input
+                            type="text"
+                            value={tagInput}
+                            onChange={handleTagInputChange}
+                            placeholder="ابحث عن كلمة دليلية أو أضف جديدة"
+                        />
+                        {tagSuggestions.length > 0 && (
+                            <ul style={{ listStyle: 'none', padding: 0 }}>
+                                {tagSuggestions.map(tag => (
+                                    <li
+                                        key={tag.id}
+                                        onClick={() => addTag(tag)}
+                                        style={{ cursor: 'pointer', padding: '5px', backgroundColor: '#f0f0f0', margin: '2px 0' }}
+                                    >
                                         {tag.attributes.name}
-                                    </option>
+                                    </li>
                                 ))}
-                            </select>
+                            </ul>
+                        )}
+                        {tagInput && !tagSuggestions.length && (
+                            <button type="button" onClick={createNewTag}>إنشاء كلمة دليلية جديدة: {tagInput}</button>
                         )}
                         {selectedTags.length > 0 && (
                             <div>
@@ -652,6 +753,5 @@ const EditPostPage = ({ params }) => {
         </>
     );
 };
-
 
 export default EditPostPage;

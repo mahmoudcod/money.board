@@ -8,6 +8,8 @@ import { useRouter } from 'next/navigation';
 import MarkdownIt from 'markdown-it';
 import MdEditor from 'react-markdown-editor-lite';
 import 'react-markdown-editor-lite/lib/index.css';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const mdParser = new MarkdownIt();
 
@@ -71,6 +73,7 @@ const ADD_POST = gql`
     $users_permissions_user: ID
     $description: String!
     $publishedAt: DateTime
+    $scheduledPublishTime: DateTime
   ) {
     createBlog(
       data: {
@@ -133,6 +136,7 @@ const ADD_POST = gql`
   }
 `;
 
+
 const GET_UPLOADED_FILES = gql`
   query GetUploadedFiles($limit: Int, $start: Int) {
     uploadFiles(
@@ -163,6 +167,21 @@ const ADD_TAG = gql`
         attributes {
           name
           publishedAt
+        }
+      }
+    }
+  }
+`;
+const CREATE_SCHEDULER = gql`
+  mutation CreateSchedulerScheduler($data: SchedulerSchedulerInput!) {
+    createSchedulerScheduler(data: $data) {
+      data {
+        id
+        attributes {
+          uid
+          entryId
+          type
+          datetime
         }
       }
     }
@@ -202,6 +221,9 @@ const AddPost = () => {
     const [tagSuggestions, setTagSuggestions] = useState([]);
     const [isPublished, setIsPublished] = useState(false);
 
+    const [scheduledPublishTime, setScheduledPublishTime] = useState(null);
+    const [isScheduled, setIsScheduled] = useState(false);
+
     const [addPost] = useMutation(ADD_POST, {
         context: {
             headers: {
@@ -212,8 +234,33 @@ const AddPost = () => {
             setAddPostError(error.message);
             setAddPostSuccess(null);
         },
+        onCompleted(data) {
+            if (isScheduled && data.createBlog.data) {
+                createScheduler({
+                    variables: {
+                        data: {
+                            uid: `post-${data.createBlog.data.id}`,
+                            entryId: data.createBlog.data.id,
+                            type: 'publish',
+                            datetime: scheduledPublishTime.toISOString(),
+                        },
+                    },
+                });
+            } else {
+                setAddPostSuccess('تم إضافة المقالة بنجاح!');
+                setTimeout(() => {
+                    router.push('/dashboard/posts');
+                }, 3000);
+            }
+        },
+    });
+
+    const [createScheduler] = useMutation(CREATE_SCHEDULER, {
+        onError(error) {
+            setAddPostError(`Error scheduling post: ${error.message}`);
+        },
         onCompleted() {
-            setAddPostSuccess('تم إضافة المقالة بنجاح!');
+            setAddPostSuccess('تم جدولة المقالة بنجاح!');
             setTimeout(() => {
                 router.push('/dashboard/posts');
             }, 3000);
@@ -374,6 +421,7 @@ const AddPost = () => {
                     users_permissions_user: selectedUser,
                     description: excerpt,
                     publishedAt: isPublished ? new Date().toISOString() : null,
+                    scheduledPublishTime: isScheduled ? scheduledPublishTime.toISOString() : null,
                 },
             });
         } catch (error) {
@@ -691,18 +739,64 @@ const AddPost = () => {
                         )}
                     </div>
                     {/* Publish Checkbox */}
+
+                    {/* Publish options */}
                     <div className="form-group">
                         <label>
                             <input
-                                type="checkbox"
-                                checked={isPublished}
-                                onChange={(e) => setIsPublished(e.target.checked)}
+                                type="radio"
+                                checked={!isPublished && !isScheduled}
+                                onChange={() => {
+                                    setIsPublished(false);
+                                    setIsScheduled(false);
+                                }}
                             />
-                            نشر المقالة الآن
+                            مسودة
+                        </label>
+                        <label>
+                            <input
+                                type="radio"
+                                checked={isPublished}
+                                onChange={() => {
+                                    setIsPublished(true);
+                                    setIsScheduled(false);
+                                }}
+                            />
+                            نشر الآن
+                        </label>
+                        <label>
+                            <input
+                                type="radio"
+                                checked={isScheduled}
+                                onChange={() => {
+                                    setIsPublished(false);
+                                    setIsScheduled(true);
+                                }}
+                            />
+                            جدولة النشر
                         </label>
                     </div>
+
+                    {/* Scheduled publish time picker */}
+                    {isScheduled && (
+                        <div className="form-group">
+                            <label>تاريخ ووقت النشر:</label>
+                            <DatePicker
+                                selected={scheduledPublishTime}
+                                onChange={(date) => setScheduledPublishTime(date)}
+                                showTimeSelect
+                                timeFormat="HH:mm"
+                                timeIntervals={15}
+                                timeCaption="time"
+                                dateFormat="MMMM d, yyyy h:mm aa"
+                                minDate={new Date()}
+                                placeholderText="اختر تاريخ ووقت النشر"
+                            />
+                        </div>
+                    )}
+
                     <button className="sub-button" type="submit">
-                        اضافة
+                        {isScheduled ? 'جدولة المقالة' : 'اضافة'}
                     </button>
                 </form>
                 {addPostError && (

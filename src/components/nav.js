@@ -1,5 +1,6 @@
+// Nave.js
 'use client'
-import React from "react";
+import React, { useState, useEffect } from 'react';
 import Link from "next/link";
 import { usePathname } from 'next/navigation';
 import { FaChartSimple } from "react-icons/fa6";
@@ -31,8 +32,7 @@ const GET_LOGO = gql`
 export default function Nave() {
     const pathname = usePathname();
     const { logout } = useAuth();
-    const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
-
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const { data, loading, error } = useQuery(GET_LOGO);
     const appName = data?.logo?.data?.attributes?.appName || 'صناع المال';
 
@@ -44,7 +44,28 @@ export default function Nave() {
         logout();
     };
 
-    if (loading) return null
+    const handleLinkClick = () => {
+        if (window.innerWidth <= 768) {
+            setIsSidebarOpen(false);
+        }
+    };
+
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth > 768) {
+                setIsSidebarOpen(true);
+            } else {
+                setIsSidebarOpen(false);
+            }
+        };
+
+        window.addEventListener('resize', handleResize);
+        handleResize();
+
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    if (loading) return null;
     if (error) return null;
 
     return (
@@ -55,47 +76,115 @@ export default function Nave() {
 
             <nav className={`dashboard-nav ${isSidebarOpen ? 'open' : ''}`}>
                 <div className="dash-logo">
-                    {/* <img src="/image.png" /> */}
                     <h1>{appName}</h1>
                 </div>
 
                 <div className="dash-links">
-                    <div className={pathname === '/dashboard/posts' ? 'dash-link active' : 'dash-link'}>
-                        <Link href={'/dashboard/posts'} ><FaChartSimple className={pathname === '/dashboard/posts' ? 'icon act' : 'icon'} />مقالات </Link>
-                    </div>
-                    <div className={pathname === '/dashboard/category' ? 'dash-link active' : 'dash-link'}>
-                        <Link href={'/dashboard/category'} ><BiCategory className={pathname === '/dashboard/category' ? 'icon act' : 'icon'} />التصنيفات </Link>
-                    </div>
-                    <div className={pathname === '/dashboard/subCat' ? 'dash-link active' : 'dash-link'}>
-                        <Link href={'/dashboard/subCat'} ><BiCategory className={pathname === '/dashboard/subCat' ? 'icon act' : 'icon'} />التصنيفات الفرعية </Link>
-                    </div>
-                    <div className={pathname === '/dashboard/tags' ? 'dash-link active' : 'dash-link'}>
-                        <Link href={'/dashboard/tags'} ><BsTags className={pathname === '/dashboard/tags' ? 'icon act' : 'icon'} /> الكلمات الدليلية </Link>
-                    </div>
-                    <div className={pathname === '/dashboard/users' ? 'dash-link active' : 'dash-link'}>
-                        <Link href={'/dashboard/users'} ><FaUsers className={pathname === '/dashboard/users' ? 'icon act' : 'icon'} />   المستخدمين  </Link>
-                    </div>
-                    <div className={pathname === '/dashboard/contact' ? 'dash-link active' : 'dash-link'}>
-                        <Link href={'/dashboard/contact'} ><LuMessagesSquare className={pathname === '/dashboard/contact' ? 'icon act' : 'icon'} /> رسائل تواصل معنا  </Link>
-                    </div>
-                    <div className={pathname === '/dashboard/commint' ? 'dash-link active' : 'dash-link'}>
-                        <Link href={'/dashboard/commint'} ><LuMessagesSquare className={pathname === '/dashboard/commint' ? 'icon act' : 'icon'} /> التعليقات </Link>
-                    </div>
-                    <div className={pathname === '/dashboard/images' ? 'dash-link active' : 'dash-link'}>
-                        <Link href={'/dashboard/images'} ><RiFolderImageLine className={pathname === '/dashboard/images' ? 'icon act' : 'icon'} />   مكتبة الصور  </Link>
-                    </div>
-                    <div className={pathname === '/dashboard/policy' ? 'dash-link active' : 'dash-link'}>
-                        <Link href={'/dashboard/policy'} ><MdOutlinePolicy className={pathname === '/dashboard/policy' ? 'icon act' : 'icon'} />    السياسات  </Link>
-                    </div>
-                    <div className={pathname === '/dashboard/settings' ? 'dash-link active' : 'dash-link'}>
-                        <Link href={'/dashboard/settings'} ><IoSettingsOutline className={pathname === '/dashboard/settings' ? 'icon act' : 'icon'} />    الاعدادات  </Link>
-                    </div>
+                    {[
+                        { path: '/dashboard/posts', icon: FaChartSimple, text: 'مقالات' },
+                        { path: '/dashboard/category', icon: BiCategory, text: 'التصنيفات' },
+                        { path: '/dashboard/subCat', icon: BiCategory, text: 'التصنيفات الفرعية' },
+                        { path: '/dashboard/tags', icon: BsTags, text: 'الكلمات الدليلية' },
+                        { path: '/dashboard/users', icon: FaUsers, text: 'المستخدمين' },
+                        { path: '/dashboard/contact', icon: LuMessagesSquare, text: 'رسائل تواصل معنا' },
+                        { path: '/dashboard/commint', icon: LuMessagesSquare, text: 'التعليقات' },
+                        { path: '/dashboard/images', icon: RiFolderImageLine, text: 'مكتبة الصور' },
+                        { path: '/dashboard/policy', icon: MdOutlinePolicy, text: 'صفحات المواقع' },
+                        { path: '/dashboard/settings', icon: IoSettingsOutline, text: 'الاعدادات' },
+                    ].map((item, index) => (
+                        <div key={index} className={pathname === item.path ? 'dash-link active' : 'dash-link'}>
+                            <Link href={item.path} onClick={handleLinkClick}>
+                                <item.icon className={pathname === item.path ? 'icon act' : 'icon'} />
+                                {item.text}
+                            </Link>
+                        </div>
+                    ))}
                     <div className={'dash-link'} >
                         <IoIosLogOut className={'icon'} />
                         <a href="" onClick={handleLogout}>تسجيل خروج</a>
                     </div>
                 </div>
             </nav>
+
+            {/* <style jsx>{`
+                .dashboard {
+                    position: relative;
+                }
+
+                .sidebar-toggle {
+                    position: fixed;
+                    top: 10px;
+                    left: 10px;
+                    z-index: 1000;
+                    background: none;
+                    border: none;
+                    font-size: 24px;
+                    cursor: pointer;
+                }
+
+                .dashboard-nav {
+                    width: 250px;
+                    height: 100vh;
+                    background-color: #f0f0f0;
+                    padding: 20px;
+                    transition: transform 0.3s ease-in-out;
+                }
+
+                .dash-logo {
+                    margin-bottom: 20px;
+                }
+
+                .dash-links {
+                    display: flex;
+                    flex-direction: column;
+                }
+
+                .dash-link {
+                    margin-bottom: 10px;
+                }
+
+                .dash-link a {
+                    display: flex;
+                    align-items: center;
+                    text-decoration: none;
+                    color: #333;
+                }
+
+                .icon {
+                    margin-right: 10px;
+                }
+
+                .active a {
+                    font-weight: bold;
+                }
+
+                @media (max-width: 768px) {
+                    .dashboard-nav {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        transform: translateX(-100%);
+                    }
+
+                    .dashboard-nav.open {
+                        transform: translateX(0);
+                    }
+
+                    .sidebar-toggle {
+                        display: block;
+                    }
+                }
+
+                @media (min-width: 769px) {
+                    .sidebar-toggle {
+                        display: none;
+                    }
+
+                    .dashboard-nav {
+                        transform: translateX(0);
+                    }
+                }
+            `}</style> */}
         </div>
     );
 }

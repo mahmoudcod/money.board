@@ -373,6 +373,7 @@ const CreateCategoryPage = () => {
                 </div>
             )}
         </main>
+
     );
 };
 

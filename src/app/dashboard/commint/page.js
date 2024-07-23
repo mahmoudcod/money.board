@@ -71,7 +71,6 @@ export default function Comments() {
                 setToken(currentToken);
             } catch (error) {
                 console.error("Error fetching token:", error);
-                setErrorMessage("Error fetching authentication token. Please try logging in again.");
             } finally {
                 setIsTokenLoading(false);
             }
