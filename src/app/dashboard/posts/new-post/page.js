@@ -8,8 +8,8 @@ import { useRouter } from 'next/navigation';
 import MarkdownIt from 'markdown-it';
 import MdEditor from 'react-markdown-editor-lite';
 import 'react-markdown-editor-lite/lib/index.css';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+// import DatePicker from 'react-datepicker';
+// import 'react-datepicker/dist/react-datepicker.css';
 
 const mdParser = new MarkdownIt();
 
@@ -781,7 +781,7 @@ const AddPost = () => {
                     {isScheduled && (
                         <div className="form-group">
                             <label>تاريخ ووقت النشر:</label>
-                            <DatePicker
+                            {/* <DatePicker
                                 selected={scheduledPublishTime}
                                 onChange={(date) => setScheduledPublishTime(date)}
                                 showTimeSelect
@@ -791,7 +791,7 @@ const AddPost = () => {
                                 dateFormat="MMMM d, yyyy h:mm aa"
                                 minDate={new Date()}
                                 placeholderText="اختر تاريخ ووقت النشر"
-                            />
+                            /> */}
                         </div>
                     )}
 
