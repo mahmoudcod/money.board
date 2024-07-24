@@ -69,7 +69,6 @@ const CreateCategoryPage = () => {
     const [iconUrl, setIconUrl] = useState('');
     const [subCategories, setSubCategories] = useState([]);
     const [allSubCategories, setAllSubCategories] = useState([]);
-    const [selectedSubCategory, setSelectedSubCategory] = useState('');
     const [isShow, setIsShow] = useState(true);
     const [description, setDescription] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
@@ -144,12 +143,12 @@ const CreateCategoryPage = () => {
         reader.readAsDataURL(file);
     };
 
-    const addSubCategory = () => {
-        if (selectedSubCategory) {
-            const subCategoryToAdd = allSubCategories.find(subCat => subCat.id === selectedSubCategory);
+    const handleSubCategoryChange = (e) => {
+        const selectedId = e.target.value;
+        if (selectedId) {
+            const subCategoryToAdd = allSubCategories.find(subCat => subCat.id === selectedId);
             if (subCategoryToAdd && !subCategories.some(subCat => subCat.id === subCategoryToAdd.id)) {
                 setSubCategories([...subCategories, subCategoryToAdd]);
-                setSelectedSubCategory('');
             }
         }
     };
@@ -330,8 +329,8 @@ const CreateCategoryPage = () => {
                     <div className="add-subcategory">
                         <select
                             className='select-box'
-                            value={selectedSubCategory}
-                            onChange={(e) => setSelectedSubCategory(e.target.value)}
+                            onChange={handleSubCategoryChange}
+                            value=""
                         >
                             <option value="">اختر فئة فرعية</option>
                             {allSubCategories.map((subCat) => (
@@ -340,9 +339,6 @@ const CreateCategoryPage = () => {
                                 </option>
                             ))}
                         </select>
-                        <button type="button" onClick={addSubCategory}>
-                            <FiPlus /> إضافة فئة فرعية
-                        </button>
                     </div>
                 </div>
                 <button className="sub-button" type="submit">
@@ -373,7 +369,6 @@ const CreateCategoryPage = () => {
                 </div>
             )}
         </main>
-
     );
 };
 

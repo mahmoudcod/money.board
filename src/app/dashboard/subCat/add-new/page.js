@@ -126,6 +126,7 @@ const CreateSubCategoryPage = () => {
                 <div className="form-group">
                     <label>الفئة الرئيسية:</label>
                     <select
+                        className="select-box"
                         value={categoryId}
                         onChange={(e) => setCategoryId(e.target.value)}
                         required

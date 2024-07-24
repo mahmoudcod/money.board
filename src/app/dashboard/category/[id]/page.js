@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
-import { FiPlus, FiMinus } from 'react-icons/fi';
+import { FiMinus } from 'react-icons/fi';
 import { useAuth } from '@/app/auth';
 
 const GET_CATEGORY = gql`
@@ -115,7 +115,6 @@ const EditCategoryPage = ({ params }) => {
     const [iconUrl, setIconUrl] = useState('');
     const [subCategories, setSubCategories] = useState([]);
     const [allSubCategories, setAllSubCategories] = useState([]);
-    const [selectedSubCategory, setSelectedSubCategory] = useState('');
     const [isShow, setIsShow] = useState(true);
     const [description, setDescription] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
@@ -214,12 +213,12 @@ const EditCategoryPage = ({ params }) => {
         reader.readAsDataURL(file);
     };
 
-    const addSubCategory = () => {
-        if (selectedSubCategory) {
-            const subCategoryToAdd = allSubCategories.find(subCat => subCat.id === selectedSubCategory);
+    const handleSubCategoryChange = (e) => {
+        const selectedId = e.target.value;
+        if (selectedId) {
+            const subCategoryToAdd = allSubCategories.find(subCat => subCat.id === selectedId);
             if (subCategoryToAdd && !subCategories.some(subCat => subCat.id === subCategoryToAdd.id)) {
                 setSubCategories([...subCategories, subCategoryToAdd]);
-                setSelectedSubCategory('');
             }
         }
     };
@@ -347,7 +346,6 @@ const EditCategoryPage = ({ params }) => {
                                     onChange={handleInputChange}
                                     accept="image/*"
                                 />
-                                <FiPlus style={{ fontSize: '50px' }} />
                                 <p>اسحب الأيقونة واسقطها هنا أو انقر للاختيار</p>
                             </label>
                         )}
@@ -424,8 +422,8 @@ const EditCategoryPage = ({ params }) => {
                     <div className="add-subcategory">
                         <select
                             className='select-box'
-                            value={selectedSubCategory}
-                            onChange={(e) => setSelectedSubCategory(e.target.value)}
+                            onChange={handleSubCategoryChange}
+                            value=""
                         >
                             <option value="">اختر فئة فرعية</option>
                             {allSubCategories.map((subCat) => (
@@ -434,9 +432,6 @@ const EditCategoryPage = ({ params }) => {
                                 </option>
                             ))}
                         </select>
-                        <button type="button" onClick={addSubCategory}>
-                            <FiPlus /> إضافة فئة فرعية
-                        </button>
                     </div>
                 </div>
                 <button className="sub-button" type="submit">

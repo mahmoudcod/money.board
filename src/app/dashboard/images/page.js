@@ -1,4 +1,3 @@
-
 'use client'
 import React, { useState, useEffect } from 'react';
 import { MdKeyboardArrowLeft, MdKeyboardArrowRight } from "react-icons/md";
@@ -6,7 +5,6 @@ import { RiDeleteBin6Line } from "react-icons/ri";
 import { useQuery, useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
 import { useAuth } from '@/app/auth';
-import Link from 'next/link';
 
 const GET_UPLOADED_FILES = gql`
   query GetUploadedFiles($start: Int!, $limit: Int!) {
@@ -43,9 +41,8 @@ export default function UploadedFilesPage() {
     const [token, setToken] = useState(null);
     const [isTokenLoading, setIsTokenLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState(null);
-    const [isSmallScreen, setIsSmallScreen] = useState(false)
 
-    const pageSize = 10;
+    const pageSize = 20;
     const { getToken, refreshToken } = useAuth();
 
     useEffect(() => {
@@ -65,16 +62,6 @@ export default function UploadedFilesPage() {
         };
 
         fetchToken();
-        const handleResize = () => {
-            setIsSmallScreen(window.innerWidth <= 650);
-        };
-
-        handleResize();
-        window.addEventListener('resize', handleResize);
-
-        return () => {
-            window.removeEventListener('resize', handleResize);
-        };
     }, [getToken, refreshToken]);
 
     const { loading, error, data, refetch } = useQuery(GET_UPLOADED_FILES, {
@@ -124,9 +111,9 @@ export default function UploadedFilesPage() {
         });
     };
 
-    if (isTokenLoading) null;
+    if (isTokenLoading) return null;
     if (!token) return <div>لم يتم العثور على رمز المصادقة. يرجى تسجيل الدخول مرة أخرى.</div>;
-    if (loading) return <div class="loader"></div>;
+    if (loading) return <div className="loader"></div>;
     if (error) return <div>خطأ: {error.message}</div>;
 
     const files = data.uploadFiles.data;
@@ -159,65 +146,52 @@ export default function UploadedFilesPage() {
 
         return (
             <div className="pagination">
-                <button className='arrow' onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1}>
+                <button
+                    className='arrow'
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                >
                     <MdKeyboardArrowRight />
                 </button>
                 {pageNumbers}
-                <button className='arrow' onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages}>
+                <button
+                    className='arrow'
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                >
                     <MdKeyboardArrowLeft />
                 </button>
             </div>
         );
     };
+
     return (
-        <main className="head">
+        <main className="gallery-container">
             <div className="head-title">
                 <h3 className="title">الملفات المرفوعة: {totalCount}</h3>
-                {/* <Link href="/dashboard/upload-file" className="addButton">
-                    رفع ملف جديد
-                </Link> */}
             </div>
 
             {errorMessage && <div className="error-message">{errorMessage}</div>}
 
-            <table className="table">
-                <thead>
-                    <tr>
-                        {/* <th>الاسم</th> */}
-                        <th>الصورة</th>
-                        <th>الرابط</th>
-                        {!isSmallScreen && (<>
-                            <th>تاريخ الرفع</th>
-                        </>)}
-                        <th>الإعدادات</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {files.map(file => (
-                        <tr key={file.id}>
-                            {/* <td>{file.attributes.name}</td> */}
-                            <td>
-                                <img src={file.attributes.url} alt={file.attributes.name} width={64} height={64} />
-                            </td>
-                            <td>
-                                <a href={file.attributes.url} target="_blank" rel="noopener noreferrer">
-                                    فتح الملف
-                                </a>
-                            </td>
-                            {!isSmallScreen && (<>
-                                <td>{formatArabicDate(file.attributes.createdAt)}</td>
-                            </>)}
-                            <td>
-                                <RiDeleteBin6Line
-                                    onClick={() => handleDeleteFile(file.id)}
-                                    className='delete'
-                                    style={{ cursor: 'pointer' }}
-                                />
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+            <div className="gallery">
+                {files.map(file => (
+                    <div key={file.id} className="gallery-item">
+                        <img src={file.attributes.url} alt={file.attributes.name} />
+                        <div className="gallery-item-overlay">
+                            <a href={file.attributes.url} target="_blank" rel="noopener noreferrer" className="gallery-item-link">
+                                فتح الملف
+                            </a>
+                            <RiDeleteBin6Line
+                                onClick={() => handleDeleteFile(file.id)}
+                                className='delete-icon'
+                            />
+                            <div className="gallery-item-date">
+                                {formatArabicDate(file.attributes.createdAt)}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
 
             {renderPagination()}
         </main>
