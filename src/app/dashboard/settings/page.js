@@ -240,6 +240,15 @@ const LogoSettingsPage = () => {
                         />
                     </div>
                     <div className="form-group">
+                        <label>وصف التطبيق:</label>
+                        <input
+                            type="text"
+                            value={null}
+                            // onChange={(e) => setAppName(e.target.value)}
+                            placeholder="أدخل وصف التطبيق"
+                        />
+                    </div>
+                    <div className="form-group">
                         <label>شعار التطبيق:</label>
                         <div
                             className="drop-area"
@@ -278,6 +287,44 @@ const LogoSettingsPage = () => {
                         <button className='addButton mar' type="button" onClick={() => setShowImageLibrary(true)}>
                             اختر من المكتبة
                         </button>
+                    </div>
+                    <div className="form-group">
+                        <label>ايقونة التطبيق:</label>
+                        <div
+                            className="drop-area"
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={handleImageDrop}
+                        >
+
+                            <label htmlFor="file-input" style={{ cursor: 'pointer' }}>
+                                <input
+                                    type="file"
+                                    id="file-input"
+                                    style={{ display: 'none' }}
+                                    // onChange={handleInputChange}
+                                    accept="image/*"
+                                />
+                                <FiPlus style={{ fontSize: '50px' }} />
+                                <p>اسحب الملف واسقطة في هذه المساحة او في المتصفح لرفعة</p>
+                            </label>
+
+                        </div>
+                        {/* {imageUrl && (
+                            <button
+                                type="button"
+                                className="delete-image-button"
+                                onClick={() => {
+                                    // setLogoFile(null);
+                                    // setImageUrl('');
+                                    // setSelectedLibraryImage(null);
+                                }}
+                            >
+                                حذف الصورة
+                            </button>
+                        )} */}
+                        {/* <button className='addButton mar' type="button" onClick={() => setShowImageLibrary(true)}>
+                            اختر من المكتبة
+                        </button> */}
                     </div>
                     <button className='sub-button' type="submit" disabled={isLoading}>
                         {isLoading ? 'جاري التحديث...' : 'حفظ التغييرات'}

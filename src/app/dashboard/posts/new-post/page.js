@@ -71,7 +71,6 @@ const ADD_POST = gql`
     $users_permissions_user: ID
     $description: String!
     $publishedAt: DateTime
-    $publish_at: DateTime
   ) {
     createBlog(
       data: {
@@ -84,7 +83,6 @@ const ADD_POST = gql`
         users_permissions_user: $users_permissions_user
         description: $description
         publishedAt: $publishedAt
-        publish_at: $publish_at
       }
     ) {
       data {
@@ -127,7 +125,6 @@ const ADD_POST = gql`
           }
           description
           publishedAt
-          publish_at
           createdAt
           updatedAt
         }
@@ -172,6 +169,7 @@ const ADD_TAG = gql`
   }
 `;
 
+
 const AddPost = () => {
     const router = useRouter();
     const { getToken } = useAuth();
@@ -203,8 +201,9 @@ const AddPost = () => {
     const [slugError, setSlugError] = useState('');
     const [tagInput, setTagInput] = useState('');
     const [tagSuggestions, setTagSuggestions] = useState([]);
-    const [isPublished, setIsPublished] = useState(false);
-    const [publishDate, setPublishDate] = useState(null);
+    const [publishMode, setPublishMode] = useState('draft');
+    const [scheduleDate, setScheduleDate] = useState('');
+    const [scheduleTime, setScheduleTime] = useState('');
 
     const [addPost] = useMutation(ADD_POST, {
         context: {
@@ -215,12 +214,6 @@ const AddPost = () => {
         onError(error) {
             setAddPostError(error.message);
             setAddPostSuccess(null);
-        },
-        onCompleted() {
-            setAddPostSuccess('تم إضافة المقالة بنجاح!');
-            setTimeout(() => {
-                router.push('/dashboard/posts');
-            }, 3000);
         },
     });
 
@@ -234,6 +227,7 @@ const AddPost = () => {
             setAddPostError(`Error creating tag: ${error.message}`);
         },
     });
+
 
     const { data: libraryData, fetchMore } = useQuery(GET_UPLOADED_FILES, {
         variables: { limit: 20, start: 0 },
@@ -257,7 +251,6 @@ const AddPost = () => {
     }, []);
 
     useEffect(() => {
-        // Auto-generate slug from title
         const generatedSlug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '');
         setSlug(generatedSlug);
     }, [title]);
@@ -361,13 +354,19 @@ const AddPost = () => {
                 featureImageId = selectedLibraryImage;
             }
 
-            // Correctly format the categories
             const formattedCategories = selectedCategories.map(item => item.categoryId);
-
-            // Correctly format the tags
             const formattedTags = selectedTags.map(tag => tag.id);
 
-            await addPost({
+            let publishedAt = null;
+            if (publishMode === 'immediate') {
+                publishedAt = new Date().toISOString();
+            }
+            if (publishMode === 'draft') {
+                publishedAt = null
+            }
+
+            // Create the post without publishing it
+            const { data: postData } = await addPost({
                 variables: {
                     title,
                     categories: formattedCategories,
@@ -377,13 +376,65 @@ const AddPost = () => {
                     tags: formattedTags,
                     users_permissions_user: selectedUser,
                     description: excerpt,
-                    publishedAt: isPublished ? new Date().toISOString() : null,
-                    publish_at: publishDate ? new Date(publishDate).toISOString() : null,
-
+                    publishedAt: null, // Set to null initially
                 },
             });
+
+            if (publishMode === 'scheduled') {
+                try {
+                    const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}`);
+
+                    const publisherActionData = {
+                        data: {
+                            executeAt: scheduledDateTime.toISOString(),
+                            mode: 'publish',
+                            entityId: parseInt(postData.createBlog.data.id),
+                            entitySlug: "api::blog.blog"
+                        }
+                    };
+
+                    const publisherActionResponse = await fetch('https://money-api.ektesad.com/api/publisher/actions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`,
+                        },
+                        body: JSON.stringify(publisherActionData),
+                    });
+
+                    if (!publisherActionResponse.ok) {
+                        throw new Error('Failed to schedule post');
+                    }
+
+                    setAddPostSuccess('تم إضافة المقالة وجدولة نشرها بنجاح!');
+                } catch (scheduleError) {
+                    console.error('Error scheduling post:', scheduleError);
+                    setAddPostError(`فشل في جدولة النشر: ${scheduleError.message}. تم حفظ المقالة كمسودة.`);
+                }
+            } else if (publishMode === 'imdmediate') {
+                // If immediate publish, update the post to publish it
+                await addPost({
+                    variables: {
+                        id: postData.createBlog.data.id,
+                        publishedAt: new Date().toISOString(),
+                    },
+                });
+                setAddPostSuccess('تم نشر المقالة بنجاح!');
+            } else {
+                await addPost({
+                    variables: {
+                        id: postData.createBlog.data.id,
+                        publishedAt: null
+                    },
+                });
+                setAddPostSuccess('تم وضع المقالة في المسودة!');
+            }
+
+            setTimeout(() => {
+                router.push('/dashboard/posts');
+            }, 3000);
         } catch (error) {
-            setAddPostError(error.message);
+            setAddPostError(`Error creating post: ${error.message}`);
             setAddPostSuccess(null);
         }
     };
@@ -450,12 +501,11 @@ const AddPost = () => {
         }
     };
 
-    // Modify the MdEditor configuration to hide the preview
     const editorConfig = {
         view: {
             menu: true,
             md: true,
-            html: false  // This hides the preview
+            html: false
         }
     };
 
@@ -475,12 +525,10 @@ const AddPost = () => {
                     <h3 className="title">اضافة مقالة</h3>
                 </div>
                 <form className="content" onSubmit={handleSubmit}>
-                    {/* Feature Image */}
                     <div className="form-group">
                         <label>الصورة البارزة للمقالة:</label>
                         <div
-                            className="drop-area"
-                            onDragOver={(e) => e.preventDefault()}
+                            className="drop-area" onDragOver={(e) => e.preventDefault()}
                             onDrop={handleImageDrop}
                         >
                             {imageUrl ? (
@@ -503,12 +551,10 @@ const AddPost = () => {
                             اختر من المكتبة
                         </button>
                     </div>
-                    {/* Title */}
                     <div className="form-group">
                         <label>اسم المقالة:</label>
                         <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required />
                     </div>
-                    {/* Slug */}
                     <div className="form-group">
                         <label>الslug:</label>
                         <input
@@ -518,7 +564,6 @@ const AddPost = () => {
                         />
                         {slugError && <p className="error-message">{slugError}</p>}
                     </div>
-                    {/* Categories */}
                     <div className="form-group">
                         <label>الأقسام:</label>
                         {loadingCategories ? (
@@ -614,7 +659,6 @@ const AddPost = () => {
                             </div>
                         )}
                     </div>
-                    {/* Author */}
                     <div className="form-group">
                         <label>الكاتب:</label>
                         {loadingUsers ? (
@@ -637,7 +681,6 @@ const AddPost = () => {
                             </select>
                         )}
                     </div>
-                    {/* Excerpt */}
                     <div className="form-group">
                         <label>مقتطف عن المقالة:</label>
                         <textarea
@@ -647,7 +690,6 @@ const AddPost = () => {
                             required
                         />
                     </div>
-                    {/* Body */}
                     <div className="form-group">
                         <label>محتوى المقالة:</label>
                         <MdEditor
@@ -658,7 +700,6 @@ const AddPost = () => {
                             config={editorConfig}
                         />
                     </div>
-                    {/* Tags */}
                     <div className="form-group">
                         <label>الكلمات الدليلية:</label>
                         <input
@@ -696,27 +737,37 @@ const AddPost = () => {
                             </div>
                         )}
                     </div>
-                    {/* Publish Checkbox */}
                     <div className="form-group">
-                        <label>
+                        <label>وضع النشر:</label>
+                        <select
+                            value={publishMode}
+                            onChange={(e) => setPublishMode(e.target.value)}
+                            className="select-box"
+                        >
+                            <option value="draft">مسودة</option>
+                            <option value="immediate">نشر فوري</option>
+                            <option value="scheduled">جدولة النشر</option>
+                        </select>
+                    </div>
+                    {publishMode === 'scheduled' && (
+                        <div className="form-group">
+                            <label>تاريخ ووقت النشر:</label>
                             <input
-                                type="checkbox"
-                                checked={isPublished}
-                                onChange={(e) => setIsPublished(e.target.checked)}
+                                type="date"
+                                value={scheduleDate}
+                                onChange={(e) => setScheduleDate(e.target.value)}
+                                required
                             />
-                            نشر
-                        </label>
-                    </div>
-                    <div className="form-group">
-                        <label>تاريخ ووقت النشر:</label>
-                        <input
-                            type="datetime-local"
-                            value={publishDate || ''}
-                            onChange={(e) => setPublishDate(e.target.value)}
-                        />
-                    </div>
+                            <input
+                                type="time"
+                                value={scheduleTime}
+                                onChange={(e) => setScheduleTime(e.target.value)}
+                                required
+                            />
+                        </div>
+                    )}
                     <button className="sub-button" type="submit">
-                        اضافة
+                        {publishMode === 'immediate' ? 'نشر' : 'جدولة النشر'}
                     </button>
                 </form>
                 {addPostError && (
@@ -750,4 +801,5 @@ const AddPost = () => {
         </>
     );
 };
+
 export default AddPost;

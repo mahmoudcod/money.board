@@ -189,6 +189,10 @@ const EditPostPage = ({ params }) => {
     const [slugError, setSlugError] = useState('');
     const [tagInput, setTagInput] = useState('');
     const [tagSuggestions, setTagSuggestions] = useState([]);
+    const [isCurrentlyScheduled, setIsCurrentlyScheduled] = useState(false);
+    const [publishMode, setPublishMode] = useState('immediate');
+    const [scheduleDate, setScheduleDate] = useState('');
+    const [scheduleTime, setScheduleTime] = useState('');
 
     const { loading, error: postError, data } = useQuery(GET_POST, {
         variables: { id: id },
@@ -258,9 +262,28 @@ const EditPostPage = ({ params }) => {
             if (post.cover && post.cover.data) {
                 setImageUrl(post.cover.data.attributes.url);
             }
+
+            if (post.publishedAt) {
+                const publishDate = new Date(post.publishedAt);
+                if (publishDate > new Date()) {
+                    setPublishMode('scheduled');
+                    setScheduleDate(publishDate.toISOString().split('T')[0]);
+                    setScheduleTime(publishDate.toTimeString().slice(0, 5));
+                    setIsCurrentlyScheduled(true);
+                } else {
+                    setPublishMode('immediate');
+                }
+            } else {
+                setPublishMode('draft');
+            }
         }
     }, [loading, data]);
 
+    useEffect(() => {
+        // Auto-generate slug from title, supporting Arabic characters
+        const generatedSlug = title.trim().replace(/\s+/g, '-');
+        setSlug(generatedSlug);
+    }, [title]);
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -351,6 +374,36 @@ const EditPostPage = ({ params }) => {
             },
         });
     };
+    const handleSchedulePost = async (postId, scheduledDateTime) => {
+        try {
+            const publisherActionData = {
+                data: {
+                    executeAt: scheduledDateTime.toISOString(),
+                    mode: 'publish',
+                    entityId: parseInt(postId),
+                    entitySlug: "api::blog.blog"
+                }
+            };
+
+            const response = await fetch('https://money-api.ektesad.com/api/publisher/actions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify(publisherActionData),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to schedule post');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error scheduling post:', error);
+            throw error;
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -381,29 +434,77 @@ const EditPostPage = ({ params }) => {
             }
 
             const formattedCategories = selectedCategories.map(item => item.categoryId);
+            let publishedAt = null;
+            if (publishMode === 'immediate') {
+                publishedAt = new Date().toISOString();
+            } else if (publishMode === 'scheduled') {
+                publishedAt = new Date(`${scheduleDate}T${scheduleTime}`).toISOString();
+            }
 
-            await updatePost({
-                variables: {
-                    id,
-                    title,
-                    categories: formattedCategories,
-                    blog: body,
-                    cover: coverData,
-                    slug,
-                    tags: selectedTags.map((tag) => tag.id),
-                    description: excerpt,
-                    publishedAt: published ? new Date().toISOString() : null,
-                },
+            const updateVariables = {
+                id,
+                title,
+                categories: formattedCategories,
+                blog: body,
+                cover: coverData,
+                slug,
+                tags: selectedTags.map((tag) => tag.id),
+                description: excerpt,
+                publishedAt: publishedAt,
+            };
+
+            console.log('Sending update with variables:', updateVariables);
+
+            const { data: postData } = await updatePost({
+                variables: updateVariables,
             });
 
-            setSuccessMessage('تم تحديث المقالة بنجاح.');
+            if (isCurrentlyScheduled && publishMode !== 'scheduled') {
+                await cancelScheduledPost();
+            }
+
+            if (publishMode === 'scheduled') {
+                if (isCurrentlyScheduled) {
+                    // Update existing schedule
+                    await handleSchedulePost(id, new Date(`${scheduleDate}T${scheduleTime}`));
+                    setSuccessMessage('تم تحديث جدولة نشر المقالة بنجاح!');
+                } else {
+                    // Create new schedule
+                    await handleSchedulePost(id, new Date(`${scheduleDate}T${scheduleTime}`));
+                    setSuccessMessage('تم تحديث المقالة وجدولة نشرها بنجاح!');
+                }
+                setIsCurrentlyScheduled(true);
+            } else if (publishMode === 'immediate') {
+                setSuccessMessage('تم نشر المقالة بنجاح!');
+            } else {
+                setSuccessMessage('تم حفظ المقالة كمسودة بنجاح!');
+            }
+
+            // Update local state with the returned data
+            if (postData && postData.updateBlog && postData.updateBlog.data) {
+                const updatedPost = postData.updateBlog.data.attributes;
+                setTitle(updatedPost.title);
+                setBody(updatedPost.blog);
+                setSlug(updatedPost.slug);
+                setExcerpt(updatedPost.description);
+                setPublished(!!updatedPost.publishedAt);
+                setSelectedTags(updatedPost.tags.data || []);
+                setSelectedCategories(updatedPost.categories.data.map(cat => ({
+                    categoryId: cat.id,
+                    subcategoryId: null
+                })) || []);
+                if (updatedPost.cover && updatedPost.cover.data) {
+                    setImageUrl(updatedPost.cover.data.attributes.url);
+                }
+            }
+
             setTimeout(() => {
                 if (!errorMessage) {
                     router.push(`/dashboard/posts`);
                 }
             }, 2000);
         } catch (error) {
-            console.error(error);
+            console.error('Error updating post:', error);
             setErrorMessage('حدث خطأ أثناء تحديث المقالة.');
         }
     };
@@ -415,13 +516,33 @@ const EditPostPage = ({ params }) => {
     const handleSlugChange = (e) => {
         const newSlug = e.target.value;
         setSlug(newSlug);
-        if (/[^A-Za-z0-9-_.~]/.test(newSlug)) {
-            setSlugError('Slug must match the following: "/^[A-Za-z0-9-_.~]*$/"');
+        if (/[^\p{L}\p{N}\-_.~]/u.test(newSlug)) {
+            setSlugError('Slug can only contain letters, numbers, hyphens, underscores, periods, and tildes');
         } else {
             setSlugError('');
         }
     };
+    const cancelScheduledPost = async () => {
+        try {
+            const response = await fetch(`https://money-api.ektesad.com/api/publisher/actions/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
 
+            if (!response.ok) {
+                throw new Error('Failed to cancel scheduled post');
+            }
+
+            setIsCurrentlyScheduled(false);
+            setPublishMode('draft');
+            setSuccessMessage('تم إلغاء جدولة النشر بنجاح.');
+        } catch (error) {
+            console.error('Error cancelling scheduled post:', error);
+            setErrorMessage('فشل في إلغاء جدولة النشر.');
+        }
+    };
     const handleTagInputChange = (e) => {
         const input = e.target.value;
         setTagInput(input);
@@ -534,6 +655,7 @@ const EditPostPage = ({ params }) => {
                             type="text"
                             value={slug}
                             onChange={handleSlugChange}
+                            placeholder="يمكن استخدام الأحرف العربية هنا"
                             required
                         />
                         {slugError && <p className="error-message">{slugError}</p>}
@@ -644,28 +766,40 @@ const EditPostPage = ({ params }) => {
                         )}
                     </div>
                     <div className="form-group">
-                        <label>حالة المقالة:</label>
-                        <div>
-                            <input
-                                type="radio"
-                                id="draft"
-                                name="published"
-                                value="draft"
-                                checked={!published}
-                                onChange={() => setPublished(false)}
-                            />
-                            <label htmlFor="draft">مسودة</label>
-                            <input
-                                type="radio"
-                                id="published"
-                                name="published"
-                                value="published"
-                                checked={published}
-                                onChange={() => setPublished(true)}
-                            />
-                            <label htmlFor="published">نشر</label>
-                        </div>
+                        <label>وضع النشر:</label>
+                        <select
+                            value={publishMode}
+                            onChange={(e) => setPublishMode(e.target.value)}
+                            className="select-box"
+                        >
+                            <option value="draft">مسودة</option>
+                            <option value="immediate">نشر فوري</option>
+                            <option value="scheduled">جدولة النشر</option>
+                        </select>
+                        {isCurrentlyScheduled && (
+                            <button type="button" onClick={cancelScheduledPost} className="cancel-schedule-button">
+                                إلغاء الجدولة
+                            </button>
+                        )}
                     </div>
+
+                    {publishMode === 'scheduled' && (
+                        <div className="form-group">
+                            <label>تاريخ ووقت النشر:</label>
+                            <input
+                                type="date"
+                                value={scheduleDate}
+                                onChange={(e) => setScheduleDate(e.target.value)}
+                                required
+                            />
+                            <input
+                                type="time"
+                                value={scheduleTime}
+                                onChange={(e) => setScheduleTime(e.target.value)}
+                                required
+                            />
+                        </div>
+                    )}
                     <div className="form-group">
                         <label>مقتطف عن المقالة:</label>
                         <textarea
