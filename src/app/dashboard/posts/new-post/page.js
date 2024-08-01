@@ -251,7 +251,12 @@ const AddPost = () => {
     }, []);
 
     useEffect(() => {
-        const generatedSlug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '');
+        const generatedSlug = title
+            .toLowerCase()
+            .replace(/\s+/g, '-')
+            .replace(/[^\u0621-\u064A0-9a-z\-]/g, '') // Allow Arabic characters, numbers, and hyphens
+            .replace(/-+/g, '-') // Replace multiple hyphens with a single hyphen
+            .trim();
         setSlug(generatedSlug);
     }, [title]);
 
@@ -450,8 +455,8 @@ const AddPost = () => {
     const handleSlugChange = (e) => {
         const newSlug = e.target.value;
         setSlug(newSlug);
-        if (/[^A-Za-z0-9-_.~]/.test(newSlug)) {
-            setSlugError('Slug must match the following: "/^[A-Za-z0-9-_.~]*$/"');
+        if (/[^\u0621-\u064A0-9a-z\-]/g.test(newSlug)) {
+            setSlugError('Slug must contain only Arabic characters, English letters, numbers, and hyphens');
         } else {
             setSlugError('');
         }
@@ -558,7 +563,8 @@ const AddPost = () => {
                     <div className="form-group">
                         <label>الslug:</label>
                         <input
-                            type="text" value={slug}
+                            type="text"
+                            value={slug}
                             onChange={handleSlugChange}
                             required
                         />
