@@ -194,11 +194,12 @@ const EditPostPage = ({ params }) => {
     const [scheduleDate, setScheduleDate] = useState('');
     const [scheduleTime, setScheduleTime] = useState('');
 
+    const [publisherAction, setPublisherAction] = useState(null);
+
     const { loading, error: postError, data } = useQuery(GET_POST, {
         variables: { id: id },
         onError: (error) => {
             console.error('Error fetching post:', error);
-            setErrorMessage('حدث خطأ أثناء جلب بيانات المقالة.');
         },
     });
 
@@ -213,7 +214,6 @@ const EditPostPage = ({ params }) => {
         },
         onError: (error) => {
             console.error('Error updating post:', error);
-            setErrorMessage('حدث خطأ أثناء تحديث المقالة.');
         },
         onCompleted: () => {
             if (!updateError) {
@@ -280,10 +280,10 @@ const EditPostPage = ({ params }) => {
     }, [loading, data]);
 
     useEffect(() => {
-        // Auto-generate slug from title, supporting Arabic characters
         const generatedSlug = title.trim().replace(/\s+/g, '-');
         setSlug(generatedSlug);
     }, [title]);
+
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -297,6 +297,39 @@ const EditPostPage = ({ params }) => {
         };
     }, []);
 
+    useEffect(() => {
+        if (id) {
+            fetchPublisherAction();
+        }
+    }, [id]);
+
+    const fetchPublisherAction = async () => {
+        try {
+            const response = await fetch(`https://money-api.ektesad.com/api/publisher/actions?filters[entityId]=${id}&filters[entitySlug]=api::blog.blog`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch publisher action');
+            }
+
+            const data = await response.json();
+            if (data && data.data && data.data.length > 0) {
+                setPublisherAction(data.data[0]);
+                const scheduledDate = new Date(data.data[0].attributes.executeAt);
+                setScheduleDate(scheduledDate.toISOString().split('T')[0]);
+                setScheduleTime(scheduledDate.toTimeString().slice(0, 5));
+                setIsCurrentlyScheduled(true);
+                setPublishMode('scheduled');
+            }
+        } catch (error) {
+            console.error('Error fetching publisher action:', error);
+            setErrorMessage('Failed to fetch scheduling information.');
+        }
+    };
 
     const handleEditorChange = ({ text }) => {
         setBody(text);
@@ -374,6 +407,7 @@ const EditPostPage = ({ params }) => {
             },
         });
     };
+
     const handleSchedulePost = async (postId, scheduledDateTime) => {
         try {
             const publisherActionData = {
@@ -385,23 +419,66 @@ const EditPostPage = ({ params }) => {
                 }
             };
 
-            const response = await fetch('https://money-api.ektesad.com/api/publisher/actions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify(publisherActionData),
-            });
+            let response;
+            if (publisherAction) {
+                // Update existing publisher action
+                response = await fetch(`https://money-api.ektesad.com/api/publisher/actions/${publisherAction.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify(publisherActionData),
+                });
+            } else {
+                // Create new publisher action
+                response = await fetch('https://money-api.ektesad.com/api/publisher/actions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify(publisherActionData),
+                });
+            }
 
             if (!response.ok) {
                 throw new Error('Failed to schedule post');
             }
 
-            return await response.json();
+            const result = await response.json();
+            setPublisherAction(result.data);
+            return result;
         } catch (error) {
             console.error('Error scheduling post:', error);
             throw error;
+        }
+    };
+
+    const cancelScheduledPost = async () => {
+        try {
+            if (!publisherAction) {
+                throw new Error('No scheduled action found');
+            }
+
+            const response = await fetch(`https://money-api.ektesad.com/api/publisher/actions/${publisherAction.id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to cancel scheduled post');
+            }
+
+            setIsCurrentlyScheduled(false);
+            setPublishMode('draft');
+            setPublisherAction(null);
+            setSuccessMessage('تم إلغاء جدولة النشر بنجاح.');
+        } catch (error) {
+            console.error('Error cancelling scheduled post:', error);
+            setErrorMessage('فشل في إلغاء جدولة النشر.');
         }
     };
 
@@ -434,11 +511,13 @@ const EditPostPage = ({ params }) => {
             }
 
             const formattedCategories = selectedCategories.map(item => item.categoryId);
+
             let publishedAt = null;
             if (publishMode === 'immediate') {
                 publishedAt = new Date().toISOString();
             } else if (publishMode === 'scheduled') {
-                publishedAt = new Date(`${scheduleDate}T${scheduleTime}`).toISOString();
+                // For scheduled posts, set publishedAt to null
+                publishedAt = null;
             }
 
             const updateVariables = {
@@ -459,24 +538,20 @@ const EditPostPage = ({ params }) => {
                 variables: updateVariables,
             });
 
-            if (isCurrentlyScheduled && publishMode !== 'scheduled') {
-                await cancelScheduledPost();
-            }
-
             if (publishMode === 'scheduled') {
-                if (isCurrentlyScheduled) {
-                    // Update existing schedule
-                    await handleSchedulePost(id, new Date(`${scheduleDate}T${scheduleTime}`));
-                    setSuccessMessage('تم تحديث جدولة نشر المقالة بنجاح!');
-                } else {
-                    // Create new schedule
-                    await handleSchedulePost(id, new Date(`${scheduleDate}T${scheduleTime}`));
-                    setSuccessMessage('تم تحديث المقالة وجدولة نشرها بنجاح!');
-                }
+                const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}`);
+                await handleSchedulePost(id, scheduledDateTime);
+                setSuccessMessage('تم تحديث المقالة وجدولة نشرها بنجاح!');
                 setIsCurrentlyScheduled(true);
             } else if (publishMode === 'immediate') {
+                if (isCurrentlyScheduled) {
+                    await cancelScheduledPost();
+                }
                 setSuccessMessage('تم نشر المقالة بنجاح!');
             } else {
+                if (isCurrentlyScheduled) {
+                    await cancelScheduledPost();
+                }
                 setSuccessMessage('تم حفظ المقالة كمسودة بنجاح!');
             }
 
@@ -505,10 +580,8 @@ const EditPostPage = ({ params }) => {
             }, 2000);
         } catch (error) {
             console.error('Error updating post:', error);
-            setErrorMessage('حدث خطأ أثناء تحديث المقالة.');
         }
     };
-
     const removeTag = (tagId) => {
         setSelectedTags((prevTags) => prevTags.filter((tag) => tag.id !== tagId));
     };
@@ -522,27 +595,7 @@ const EditPostPage = ({ params }) => {
             setSlugError('');
         }
     };
-    const cancelScheduledPost = async () => {
-        try {
-            const response = await fetch(`https://money-api.ektesad.com/api/publisher/actions/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
 
-            if (!response.ok) {
-                throw new Error('Failed to cancel scheduled post');
-            }
-
-            setIsCurrentlyScheduled(false);
-            setPublishMode('draft');
-            setSuccessMessage('تم إلغاء جدولة النشر بنجاح.');
-        } catch (error) {
-            console.error('Error cancelling scheduled post:', error);
-            setErrorMessage('فشل في إلغاء جدولة النشر.');
-        }
-    };
     const handleTagInputChange = (e) => {
         const input = e.target.value;
         setTagInput(input);
@@ -800,6 +853,7 @@ const EditPostPage = ({ params }) => {
                             />
                         </div>
                     )}
+
                     <div className="form-group">
                         <label>مقتطف عن المقالة:</label>
                         <textarea

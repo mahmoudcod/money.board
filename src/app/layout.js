@@ -1,6 +1,5 @@
 import { ApolloWrapper } from "./ApolloWrapper";
 import { AuthProvider } from './auth';
-import Head from "next/head";
 import "./globals.css";
 
 export const metadata = {
@@ -14,9 +13,6 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="ar" dir="rtl">
-      <Head>
-        <link rel="icon" href="/favicon.svg" />
-      </Head>
       <AuthProvider>
         <ApolloWrapper>
           <body>
