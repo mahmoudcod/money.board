@@ -254,8 +254,8 @@ const AddPost = () => {
         const generatedSlug = title
             .toLowerCase()
             .replace(/\s+/g, '-')
-            .replace(/[^\u0621-\u064A0-9a-z\-]/g, '') // Allow Arabic characters, numbers, and hyphens
-            .replace(/-+/g, '-') // Replace multiple hyphens with a single hyphen
+            .replace(/[^\u0621-\u064A0-9a-z\-]/g, '')
+            .replace(/-+/g, '-')
             .trim();
         setSlug(generatedSlug);
     }, [title]);
@@ -363,14 +363,12 @@ const AddPost = () => {
             const formattedTags = selectedTags.map(tag => tag.id);
 
             let publishedAt = null;
+
             if (publishMode === 'immediate') {
                 publishedAt = new Date().toISOString();
             }
-            if (publishMode === 'draft') {
-                publishedAt = null
-            }
 
-            // Create the post without publishing it
+            // Create the post with the correct publishedAt value
             const { data: postData } = await addPost({
                 variables: {
                     title,
@@ -381,7 +379,7 @@ const AddPost = () => {
                     tags: formattedTags,
                     users_permissions_user: selectedUser,
                     description: excerpt,
-                    publishedAt: null, // Set to null initially
+                    publishedAt: publishedAt, // This will be null for draft, a date for immediate, and null for scheduled
                 },
             });
 
@@ -416,22 +414,9 @@ const AddPost = () => {
                     console.error('Error scheduling post:', scheduleError);
                     setAddPostError(`فشل في جدولة النشر: ${scheduleError.message}. تم حفظ المقالة كمسودة.`);
                 }
-            } else if (publishMode === 'imdmediate') {
-                // If immediate publish, update the post to publish it
-                await addPost({
-                    variables: {
-                        id: postData.createBlog.data.id,
-                        publishedAt: new Date().toISOString(),
-                    },
-                });
+            } else if (publishMode === 'immediate') {
                 setAddPostSuccess('تم نشر المقالة بنجاح!');
             } else {
-                await addPost({
-                    variables: {
-                        id: postData.createBlog.data.id,
-                        publishedAt: null
-                    },
-                });
                 setAddPostSuccess('تم وضع المقالة في المسودة!');
             }
 
@@ -567,7 +552,6 @@ const AddPost = () => {
                             value={slug}
                             onChange={handleSlugChange}
                             required
-                            dir="auto" // Add this to automatically adjust text direction
                         />
                         {slugError && <p className="error-message">{slugError}</p>}
                     </div>
