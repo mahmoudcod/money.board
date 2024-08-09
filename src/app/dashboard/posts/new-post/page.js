@@ -567,6 +567,7 @@ const AddPost = () => {
                             value={slug}
                             onChange={handleSlugChange}
                             required
+                            dir="auto" // Add this to automatically adjust text direction
                         />
                         {slugError && <p className="error-message">{slugError}</p>}
                     </div>
