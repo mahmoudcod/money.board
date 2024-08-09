@@ -297,7 +297,7 @@ export default function Post() {
                                         <RiDeleteBin6Line
                                             onClick={() => deletePost(post.id)}
                                             className="delete"
-                                            style={{ marginRight: ' 18px', fontSize: '18px' }}
+                                            style={{ marginRight: ' 14px', fontSize: '18px' }}
                                         />
                                     </td>
                                 </tr>
