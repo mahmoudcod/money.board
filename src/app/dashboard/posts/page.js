@@ -292,12 +292,12 @@ export default function Post() {
                                     {!isSmallScreen && <td>{formatArabicDate(post.attributes.createdAt)}</td>}
                                     <td>
                                         <Link href={`/dashboard/posts/${post.id}`}>
-                                            <MdOutlineEdit style={{ color: '#4D4F5C' }} />
+                                            <MdOutlineEdit style={{ color: '#4D4F5C', fontSize: '18px' }} />
                                         </Link>
                                         <RiDeleteBin6Line
                                             onClick={() => deletePost(post.id)}
                                             className="delete"
-                                            style={{ marginRight: ' 20px' }}
+                                            style={{ marginRight: ' 18px', fontSize: '18px' }}
                                         />
                                     </td>
                                 </tr>
