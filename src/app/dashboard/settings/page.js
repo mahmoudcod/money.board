@@ -13,6 +13,15 @@ const GET_LOGO = gql`
         id
         attributes {
           appName
+          description
+          favicon {
+            data {
+              id
+              attributes {
+                url
+              }
+            }
+          }
           logo {
             data {
               id
@@ -34,8 +43,18 @@ const UPDATE_LOGO = gql`
         id
         attributes {
           appName
+          description
+          favicon {
+            data {
+              id
+              attributes {
+                url
+              }
+            }
+          }
           logo {
             data {
+              id
               attributes {
                 url
               }
@@ -76,8 +95,11 @@ const LogoSettingsPage = () => {
 
     const [logoId, setLogoId] = useState('');
     const [logoFile, setLogoFile] = useState(null);
-    const [imageUrl, setImageUrl] = useState('');
+    const [faviconFile, setFaviconFile] = useState(null);
+    const [logoUrl, setLogoUrl] = useState('');
+    const [faviconUrl, setFaviconUrl] = useState('');
     const [appName, setAppName] = useState('');
+    const [description, setDescription] = useState('');
     const [errorMessage, setErrorMessage] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -86,6 +108,8 @@ const LogoSettingsPage = () => {
     const [libraryPage, setLibraryPage] = useState(0);
     const [hasMoreImages, setHasMoreImages] = useState(true);
     const [selectedLibraryImage, setSelectedLibraryImage] = useState(null);
+    const [selectedLibraryFavicon, setSelectedLibraryFavicon] = useState(null);
+    const [currentImageType, setCurrentImageType] = useState(null);
 
     const { loading, error, data } = useQuery(GET_LOGO, {
         context: {
@@ -113,40 +137,62 @@ const LogoSettingsPage = () => {
 
     useEffect(() => {
         if (!loading && data && data.logo && data.logo.data) {
+            const logoData = data.logo.data.attributes;
             setLogoId(data.logo.data.id);
-            setImageUrl(data.logo.data.attributes.logo.data?.attributes.url || '');
-            setAppName(data.logo.data.attributes.appName || '');
-            if (data.logo.data.attributes.logo.data) {
-                setSelectedLibraryImage(data.logo.data.attributes.logo.data.id);
+            setLogoUrl(logoData.logo.data?.attributes.url || '');
+            setFaviconUrl(logoData.favicon.data?.attributes.url || '');
+            setAppName(logoData.appName || '');
+            setDescription(logoData.description || '');
+            if (logoData.logo.data) {
+                setSelectedLibraryImage(logoData.logo.data.id);
+            }
+            if (logoData.favicon.data) {
+                setSelectedLibraryFavicon(logoData.favicon.data.id);
             }
         }
     }, [loading, data]);
 
-    const handleImageDrop = (e) => {
+    const handleImageDrop = (e, imageType) => {
         e.preventDefault();
         const file = e.dataTransfer.files[0];
-        setLogoFile(file);
-        previewImage(file);
+        if (imageType === 'logo') {
+            setLogoFile(file);
+            previewImage(file, setLogoUrl);
+        } else if (imageType === 'favicon') {
+            setFaviconFile(file);
+            previewImage(file, setFaviconUrl);
+        }
     };
 
-    const handleInputChange = (e) => {
+    const handleInputChange = (e, imageType) => {
         const file = e.target.files[0];
-        setLogoFile(file);
-        previewImage(file);
+        if (imageType === 'logo') {
+            setLogoFile(file);
+            previewImage(file, setLogoUrl);
+        } else if (imageType === 'favicon') {
+            setFaviconFile(file);
+            previewImage(file, setFaviconUrl);
+        }
     };
 
-    const previewImage = (file) => {
+    const previewImage = (file, setUrlFunction) => {
         const reader = new FileReader();
         reader.onloadend = () => {
-            setImageUrl(reader.result);
+            setUrlFunction(reader.result);
         };
         reader.readAsDataURL(file);
     };
 
     const handleSelectFromLibrary = (imageUrl, imageId) => {
-        setImageUrl(imageUrl);
-        setSelectedLibraryImage(imageId);
-        setLogoFile(null);
+        if (currentImageType === 'logo') {
+            setLogoUrl(imageUrl);
+            setSelectedLibraryImage(imageId);
+            setLogoFile(null);
+        } else if (currentImageType === 'favicon') {
+            setFaviconUrl(imageUrl);
+            setSelectedLibraryFavicon(imageId);
+            setFaviconFile(null);
+        }
         setShowImageLibrary(false);
     };
 
@@ -171,6 +217,26 @@ const LogoSettingsPage = () => {
         });
     };
 
+    const uploadImage = async (file) => {
+        const formData = new FormData();
+        formData.append('files', file);
+
+        const response = await fetch('https://money-api.ektesad.com/api/upload', {
+            method: 'POST',
+            headers: {
+                authorization: `Bearer ${token}`,
+            },
+            body: formData,
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to upload image');
+        }
+
+        const res = await response.json();
+        return res[0]?.id;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
@@ -179,37 +245,28 @@ const LogoSettingsPage = () => {
 
         try {
             let logoFileId = selectedLibraryImage;
+            let faviconFileId = selectedLibraryFavicon;
 
             if (logoFile) {
-                const formData = new FormData();
-                formData.append('files', logoFile);
+                logoFileId = await uploadImage(logoFile);
+            }
 
-                const response = await fetch('https://money-api.ektesad.com/api/upload', {
-                    method: 'POST',
-                    headers: {
-                        authorization: `Bearer ${token}`,
-                    },
-                    body: formData,
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to upload image');
-                }
-
-                const res = await response.json();
-                logoFileId = res[0]?.id;
+            if (faviconFile) {
+                faviconFileId = await uploadImage(faviconFile);
             }
 
             await updateLogo({
                 variables: {
                     data: {
                         logo: logoFileId,
+                        favicon: faviconFileId,
                         appName: appName,
+                        description: description,
                     },
                 },
             });
 
-            setSuccessMessage("تم تحديث الشعار واسم التطبيق بنجاح");
+            setSuccessMessage("تم تحديث الشعار واسم التطبيق والأيقونة والوصف بنجاح");
             setTimeout(() => {
                 router.push('/dashboard/settings');
             }, 3000);
@@ -241,10 +298,9 @@ const LogoSettingsPage = () => {
                     </div>
                     <div className="form-group">
                         <label>وصف التطبيق:</label>
-                        <input
-                            type="text"
-                            value={null}
-                            // onChange={(e) => setAppName(e.target.value)}
+                        <textarea
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
                             placeholder="أدخل وصف التطبيق"
                         />
                     </div>
@@ -253,17 +309,17 @@ const LogoSettingsPage = () => {
                         <div
                             className="drop-area"
                             onDragOver={(e) => e.preventDefault()}
-                            onDrop={handleImageDrop}
+                            onDrop={(e) => handleImageDrop(e, 'logo')}
                         >
-                            {imageUrl ? (
-                                <img src={imageUrl} alt="Logo" style={{ maxWidth: '100%', maxHeight: '200px' }} />
+                            {logoUrl ? (
+                                <img src={logoUrl} alt="Logo" style={{ maxWidth: '100%', maxHeight: '200px' }} />
                             ) : (
-                                <label htmlFor="file-input" style={{ cursor: 'pointer' }}>
+                                <label htmlFor="logo-input" style={{ cursor: 'pointer' }}>
                                     <input
                                         type="file"
-                                        id="file-input"
+                                        id="logo-input"
                                         style={{ display: 'none' }}
-                                        onChange={handleInputChange}
+                                        onChange={(e) => handleInputChange(e, 'logo')}
                                         accept="image/*"
                                     />
                                     <FiPlus style={{ fontSize: '50px' }} />
@@ -271,60 +327,68 @@ const LogoSettingsPage = () => {
                                 </label>
                             )}
                         </div>
-                        {imageUrl && (
+                        {logoUrl && (
                             <button
                                 type="button"
                                 className="delete-image-button"
                                 onClick={() => {
                                     setLogoFile(null);
-                                    setImageUrl('');
+                                    setLogoUrl('');
                                     setSelectedLibraryImage(null);
                                 }}
                             >
                                 حذف الصورة
                             </button>
                         )}
-                        <button className='addButton mar' type="button" onClick={() => setShowImageLibrary(true)}>
+                        <button className='addButton mar' type="button" onClick={() => {
+                            setCurrentImageType('logo');
+                            setShowImageLibrary(true);
+                        }}>
                             اختر من المكتبة
                         </button>
                     </div>
                     <div className="form-group">
-                        <label>ايقونة التطبيق:</label>
+                        <label>أيقونة التطبيق:</label>
                         <div
                             className="drop-area"
                             onDragOver={(e) => e.preventDefault()}
-                            onDrop={handleImageDrop}
+                            onDrop={(e) => handleImageDrop(e, 'favicon')}
                         >
-
-                            <label htmlFor="file-input" style={{ cursor: 'pointer' }}>
-                                <input
-                                    type="file"
-                                    id="file-input"
-                                    style={{ display: 'none' }}
-                                    // onChange={handleInputChange}
-                                    accept="image/*"
-                                />
-                                <FiPlus style={{ fontSize: '50px' }} />
-                                <p>اسحب الملف واسقطة في هذه المساحة او في المتصفح لرفعة</p>
-                            </label>
-
+                            {faviconUrl ? (
+                                <img src={faviconUrl} alt="Favicon" style={{ maxWidth: '100%', maxHeight: '200px' }} />
+                            ) : (
+                                <label htmlFor="favicon-input" style={{ cursor: 'pointer' }}>
+                                    <input
+                                        type="file"
+                                        id="favicon-input"
+                                        style={{ display: 'none' }}
+                                        onChange={(e) => handleInputChange(e, 'favicon')}
+                                        accept="image/*"
+                                    />
+                                    <FiPlus style={{ fontSize: '50px' }} />
+                                    <p>اسحب الملف واسقطة في هذه المساحة او في المتصفح لرفعة</p>
+                                </label>
+                            )}
                         </div>
-                        {/* {imageUrl && (
+                        {faviconUrl && (
                             <button
                                 type="button"
                                 className="delete-image-button"
                                 onClick={() => {
-                                    // setLogoFile(null);
-                                    // setImageUrl('');
-                                    // setSelectedLibraryImage(null);
+                                    setFaviconFile(null);
+                                    setFaviconUrl('');
+                                    setSelectedLibraryFavicon(null);
                                 }}
                             >
-                                حذف الصورة
+                                حذف الأيقونة
                             </button>
-                        )} */}
-                        {/* <button className='addButton mar' type="button" onClick={() => setShowImageLibrary(true)}>
+                        )}
+                        <button className='addButton mar' type="button" onClick={() => {
+                            setCurrentImageType('favicon');
+                            setShowImageLibrary(true);
+                        }}>
                             اختر من المكتبة
-                        </button> */}
+                        </button>
                     </div>
                     <button className='sub-button' type="submit" disabled={isLoading}>
                         {isLoading ? 'جاري التحديث...' : 'حفظ التغييرات'}
