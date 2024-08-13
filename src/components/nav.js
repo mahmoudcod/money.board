@@ -1,6 +1,6 @@
 // Nave.js
 'use client'
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from "next/link";
 import { usePathname } from 'next/navigation';
 import { FaChartSimple } from "react-icons/fa6";
@@ -35,6 +35,7 @@ export default function Nave() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const { data, loading, error } = useQuery(GET_LOGO);
     const appName = data?.logo?.data?.attributes?.appName || 'صناع المال';
+    const sidebarRef = useRef(null);
 
     const handleSidebarToggle = () => {
         setIsSidebarOpen(!isSidebarOpen);
@@ -59,10 +60,20 @@ export default function Nave() {
             }
         };
 
+        const handleClickOutside = (event) => {
+            if (sidebarRef.current && !sidebarRef.current.contains(event.target) && window.innerWidth <= 768) {
+                setIsSidebarOpen(false);
+            }
+        };
+
         window.addEventListener('resize', handleResize);
+        document.addEventListener('mousedown', handleClickOutside);
         handleResize();
 
-        return () => window.removeEventListener('resize', handleResize);
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
     }, []);
 
     if (loading) return null;
@@ -74,7 +85,7 @@ export default function Nave() {
                 <IoIosMenu />
             </button>
 
-            <nav className={`dashboard-nav ${isSidebarOpen ? 'open' : ''}`}>
+            <nav ref={sidebarRef} className={`dashboard-nav ${isSidebarOpen ? 'open' : ''}`}>
                 <div className="dash-logo">
                     <h1>{appName}</h1>
                 </div>
@@ -105,86 +116,6 @@ export default function Nave() {
                     </div>
                 </div>
             </nav>
-
-            {/* <style jsx>{`
-                .dashboard {
-                    position: relative;
-                }
-
-                .sidebar-toggle {
-                    position: fixed;
-                    top: 10px;
-                    left: 10px;
-                    z-index: 1000;
-                    background: none;
-                    border: none;
-                    font-size: 24px;
-                    cursor: pointer;
-                }
-
-                .dashboard-nav {
-                    width: 250px;
-                    height: 100vh;
-                    background-color: #f0f0f0;
-                    padding: 20px;
-                    transition: transform 0.3s ease-in-out;
-                }
-
-                .dash-logo {
-                    margin-bottom: 20px;
-                }
-
-                .dash-links {
-                    display: flex;
-                    flex-direction: column;
-                }
-
-                .dash-link {
-                    margin-bottom: 10px;
-                }
-
-                .dash-link a {
-                    display: flex;
-                    align-items: center;
-                    text-decoration: none;
-                    color: #333;
-                }
-
-                .icon {
-                    margin-right: 10px;
-                }
-
-                .active a {
-                    font-weight: bold;
-                }
-
-                @media (max-width: 768px) {
-                    .dashboard-nav {
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        transform: translateX(-100%);
-                    }
-
-                    .dashboard-nav.open {
-                        transform: translateX(0);
-                    }
-
-                    .sidebar-toggle {
-                        display: block;
-                    }
-                }
-
-                @media (min-width: 769px) {
-                    .sidebar-toggle {
-                        display: none;
-                    }
-
-                    .dashboard-nav {
-                        transform: translateX(0);
-                    }
-                }
-            `}</style> */}
         </div>
     );
 }
