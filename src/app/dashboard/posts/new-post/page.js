@@ -54,6 +54,7 @@ const GET_TAGS = gql`
         id
         attributes {
           name
+          slug
         }
       }
     }
@@ -65,6 +66,7 @@ const ADD_POST = gql`
     $title: String!
     $categories: [ID]!
     $blog: String!
+    $sources: String!
     $cover: ID
     $slug: String!
     $tags: [ID]
@@ -77,6 +79,7 @@ const ADD_POST = gql`
         title: $title
         categories: $categories
         blog: $blog
+        sources: $sources
         cover: $cover
         slug: $slug
         tags: $tags
@@ -98,6 +101,7 @@ const ADD_POST = gql`
             }
           }
           blog
+          sources
           cover {
             data {
               id
@@ -156,12 +160,13 @@ const GET_UPLOADED_FILES = gql`
 `;
 
 const ADD_TAG = gql`
-  mutation CreateAndPublishTag($name: String!, $publishedAt: DateTime!) {
-    createTag(data: { name: $name, publishedAt: $publishedAt }) {
+  mutation CreateAndPublishTag($name: String!, $slug: String!, $publishedAt: DateTime!) {
+    createTag(data: { name: $name, slug: $slug, publishedAt: $publishedAt }) {
       data {
         id
         attributes {
           name
+          slug
           publishedAt
         }
       }
@@ -169,10 +174,9 @@ const ADD_TAG = gql`
   }
 `;
 
-
 const AddPost = () => {
     const router = useRouter();
-    const { getToken } = useAuth();
+    const { getToken, getCurrentUserId, isAdmin } = useAuth();
     const token = getToken();
 
     const { loading: loadingUsers, data: userData, error: usersError } = useQuery(GET_USERS);
@@ -191,6 +195,7 @@ const AddPost = () => {
     const [showDropdown, setShowDropdown] = useState(false);
     const [selectedCategories, setSelectedCategories] = useState([]);
     const dropdownRef = useRef(null);
+    const [sources, setSources] = useState('');
 
     const [showImageLibrary, setShowImageLibrary] = useState(false);
     const [libraryImages, setLibraryImages] = useState([]);
@@ -228,6 +233,21 @@ const AddPost = () => {
         },
     });
 
+    useEffect(() => {
+        const currentUserId = getCurrentUserId();
+        if (currentUserId) {
+            setSelectedUser(currentUserId);
+        }
+    }, []);
+
+    const generateSlug = (name) => {
+        return name
+            .toLowerCase()
+            .replace(/\s+/g, '-')
+            .replace(/[^\p{L}\p{N}-]/gu, '')
+            .replace(/-+/g, '-')
+            .trim();
+    };
 
     const { data: libraryData, fetchMore } = useQuery(GET_UPLOADED_FILES, {
         variables: { limit: 20, start: 0 },
@@ -374,12 +394,13 @@ const AddPost = () => {
                     title,
                     categories: formattedCategories,
                     blog: body,
+                    sources,
                     cover: featureImageId,
                     slug,
                     tags: formattedTags,
                     users_permissions_user: selectedUser,
                     description: excerpt,
-                    publishedAt: publishedAt, // This will be null for draft, a date for immediate, and null for scheduled
+                    publishedAt: publishedAt,
                 },
             });
 
@@ -468,19 +489,23 @@ const AddPost = () => {
         setTagInput('');
         setTagSuggestions([]);
     };
-
     const createNewTag = async () => {
         try {
+            const slug = generateSlug(tagInput);
             const { data } = await createTag({
                 variables: {
                     name: tagInput,
+                    slug: slug,
                     publishedAt: new Date().toISOString()
                 }
             });
             if (data && data.createTag && data.createTag.data) {
                 const newTag = {
                     id: data.createTag.data.id,
-                    attributes: { name: data.createTag.data.attributes.name }
+                    attributes: {
+                        name: data.createTag.data.attributes.name,
+                        slug: data.createTag.data.attributes.slug
+                    }
                 };
                 addTag(newTag);
             } else {
@@ -490,7 +515,6 @@ const AddPost = () => {
             setAddPostError(`Error creating tag: ${error.message}`);
         }
     };
-
     const editorConfig = {
         view: {
             menu: true,
@@ -653,7 +677,7 @@ const AddPost = () => {
                     <div className="form-group">
                         <label>الكاتب:</label>
                         {loadingUsers ? (
-                            null
+                            <p>جاري تحميل الكتاب...</p>
                         ) : usersError ? (
                             <p>خطأ في جلب البيانات: {usersError.message}</p>
                         ) : (
@@ -663,7 +687,6 @@ const AddPost = () => {
                                 onChange={(e) => setSelectedUser(e.target.value)}
                                 required
                             >
-                                <option value="">اختر كاتب</option>
                                 {userData.usersPermissionsUsers.data.map((user) => (
                                     <option key={user.id} value={user.id}>
                                         {user.attributes.username}
@@ -691,6 +714,17 @@ const AddPost = () => {
                             config={editorConfig}
                         />
                     </div>
+                    <div className="form-group">
+                        <label>المصادر:</label>
+                        <MdEditor
+                            value={sources}
+                            style={{ height: '200px' }}
+                            renderHTML={(text) => mdParser.render(text)}
+                            onChange={({ text }) => setSources(text)}
+                            config={editorConfig}
+                        />
+                    </div>
+
                     <div className="form-group">
                         <label>الكلمات الدليلية:</label>
                         <input

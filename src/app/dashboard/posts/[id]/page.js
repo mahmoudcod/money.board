@@ -144,21 +144,20 @@ const GET_UPLOADED_FILES = gql`
     }
   }
 `;
-
 const ADD_TAG = gql`
-  mutation CreateAndPublishTag($name: String!, $publishedAt: DateTime!) {
-    createTag(data: { name: $name, publishedAt: $publishedAt }) {
+  mutation CreateAndPublishTag($name: String!, $slug: String!, $publishedAt: DateTime!) {
+    createTag(data: { name: $name, slug: $slug, publishedAt: $publishedAt }) {
       data {
         id
         attributes {
           name
+          slug
           publishedAt
         }
       }
     }
   }
 `;
-
 const EditPostPage = ({ params }) => {
     const router = useRouter();
     const { getToken } = useAuth();
@@ -245,6 +244,14 @@ const EditPostPage = ({ params }) => {
             setHasMoreImages(data.uploadFiles.data.length < data.uploadFiles.meta.pagination.total);
         },
     });
+    const generateSlug = (name) => {
+        return name
+            .toLowerCase()
+            .replace(/\s+/g, '-')
+            .replace(/[^\p{L}\p{N}-]/gu, '')
+            .replace(/-+/g, '-')
+            .trim();
+    };
 
     useEffect(() => {
         if (!loading && data && data.blog && data.blog.data) {
@@ -620,16 +627,21 @@ const EditPostPage = ({ params }) => {
 
     const createNewTag = async () => {
         try {
+            const slug = generateSlug(tagInput);
             const { data } = await createTag({
                 variables: {
                     name: tagInput,
+                    slug: slug,
                     publishedAt: new Date().toISOString()
                 }
             });
             if (data && data.createTag && data.createTag.data) {
                 const newTag = {
                     id: data.createTag.data.id,
-                    attributes: { name: data.createTag.data.attributes.name }
+                    attributes: {
+                        name: data.createTag.data.attributes.name,
+                        slug: data.createTag.data.attributes.slug
+                    }
                 };
                 addTag(newTag);
             } else {
@@ -639,7 +651,6 @@ const EditPostPage = ({ params }) => {
             setErrorMessage(`Error creating tag: ${error.message}`);
         }
     };
-
     // Modify the MdEditor configuration to hide the preview
     const editorConfig = {
         view: {

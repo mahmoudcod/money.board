@@ -61,7 +61,6 @@
     position: fixed;
     right: -250px;
     z-index: 9;
-    height: 100vh;
     transition: right 0.3s ease;
     background-color: #0280cd;
     border-radius: 15px 0 0px 15px;
@@ -93,6 +92,13 @@
     .sidebar-toggle {
         display: none;
     }
+}
+
+@media (max-width: 768px) {
+    .dashboard-nav {
+        height: 100vh;
+    }
+
 }
 
 .dash-logo {

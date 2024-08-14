@@ -6,18 +6,20 @@ import { useAuth } from '@/app/auth';
 import { useRouter } from 'next/navigation';
 
 const ADD_TAG = gql`
-  mutation CreateAndPublishTag($name: String!, $publishedAt: DateTime!) {
-    createTag(data: { name: $name, publishedAt: $publishedAt }) {
+  mutation CreateAndPublishTag($name: String!, $slug: String!, $publishedAt: DateTime!) {
+    createTag(data: { name: $name, slug: $slug, publishedAt: $publishedAt }) {
       data {
         id
         attributes {
           name
+          slug
           publishedAt
         }
       }
     }
   }
 `;
+
 const AddTag = () => {
   const router = useRouter();
   const { getToken } = useAuth();
@@ -33,14 +35,31 @@ const AddTag = () => {
       },
     },
   });
+
+  const generateSlug = (name) => {
+    return name
+      .toLowerCase()
+      .trim()
+      .normalize("NFD")  // Normalize to decomposed form
+      .replace(/[\u0300-\u036f]/g, "")  // Remove diacritical marks
+      .replace(/[^\p{L}\p{N}\s-]/gu, "") // Keep only letters, numbers, spaces, and hyphens
+      .replace(/\s+/g, '-')  // Replace spaces with hyphens
+      .replace(/-+/g, '-')   // Remove consecutive hyphens
+      .replace(/^-+/, '')    // Remove starting hyphens
+      .replace(/-+$/, '');   // Remove trailing hyphens
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage(null);
     setIsLoading(true);
+
     try {
+      const slug = generateSlug(name);
       const result = await addTag({
         variables: {
           name,
+          slug,
           publishedAt: new Date().toISOString(),
         },
       });
@@ -61,6 +80,7 @@ const AddTag = () => {
       setIsLoading(false);
     }
   };
+
   return (
     <>
       <main className="head">

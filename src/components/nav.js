@@ -87,7 +87,7 @@ export default function Nave() {
                         { path: '/dashboard/tags', icon: BsTags, text: 'الكلمات الدليلية' },
                         { path: '/dashboard/users', icon: FaUsers, text: 'المستخدمين' },
                         { path: '/dashboard/contact', icon: LuMessagesSquare, text: 'رسائل تواصل معنا' },
-                        { path: '/dashboard/commint', icon: LuMessagesSquare, text: 'التعليقات' },
+                        // { path: '/dashboard/commint', icon: LuMessagesSquare, text: 'التعليقات' },
                         { path: '/dashboard/images', icon: RiFolderImageLine, text: 'مكتبة الصور' },
                         { path: '/dashboard/policy', icon: MdOutlinePolicy, text: 'صفحات المواقع' },
                         { path: '/dashboard/settings', icon: IoSettingsOutline, text: 'الاعدادات' },

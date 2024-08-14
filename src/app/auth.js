@@ -1,9 +1,9 @@
-// auth.js
 'use client'
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import Cookies from 'js-cookie';
+import { jwtDecode } from 'jwt-decode';
 
 const AuthContext = createContext();
 
@@ -55,11 +55,38 @@ export const AuthProvider = ({ children }) => {
         Cookies.remove('jwt');
         router.push('/');
     };
+
     const app = () => appName;
     const getToken = () => user;
 
+    const getCurrentUserId = () => {
+        if (user) {
+            try {
+                const decodedToken = jwtDecode(user);
+                return decodedToken.id; // Assuming the user ID is stored in the 'id' field of the token
+            } catch (error) {
+                console.error('Error decoding token:', error);
+                return null;
+            }
+        }
+        return null;
+    };
+    const isAdmin = () => {
+        if (user) {
+            try {
+                const decodedToken = jwtDecode(user);
+                return decodedToken.role === 'admin'; // Adjust this based on how admin status is stored in your token
+            } catch (error) {
+                console.error('Error decoding token:', error);
+                return false;
+            }
+        }
+        return false;
+    };
+
+
     return (
-        <AuthContext.Provider value={{ login, logout, getToken, app, loading }}>
+        <AuthContext.Provider value={{ login, logout, getToken, app, loading, getCurrentUserId, isAdmin }}>
             {children}
         </AuthContext.Provider>
     );
