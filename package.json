@@ -11,7 +11,7 @@
   "dependencies": {
     "@apollo/client": "^3.10.1",
     "@apollo/experimental-nextjs-app-support": "^0.10.0",
-    "axios": "^1.6.8",
+    "axios": "^1.7.4",
     "draft-js": "^0.11.7",
     "graphql": "^16.8.1",
     "js-cookie": "^3.0.5",
