@@ -91,15 +91,17 @@
     background-color: #fff;
     padding: 10px;
     border-radius: 50%;
-    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
     cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
+    border-color: none;
 }
 
 .sidebar-toggle svg {
     font-size: 24px;
+    color: #409FD7;
+    border: none;
 }
 
 @media (min-width: 768px) {
