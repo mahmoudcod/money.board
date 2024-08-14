@@ -22,6 +22,14 @@ const GET_LOGO = gql`
               }
             }
           }
+          footerLogo {
+            data {
+              id
+              attributes {
+                url
+              }
+            }
+          }
           logo {
             data {
               id
@@ -45,6 +53,14 @@ const UPDATE_LOGO = gql`
           appName
           description
           favicon {
+            data {
+              id
+              attributes {
+                url
+              }
+            }
+          }
+          footerLogo {
             data {
               id
               attributes {
@@ -96,8 +112,10 @@ const LogoSettingsPage = () => {
     const [logoId, setLogoId] = useState('');
     const [logoFile, setLogoFile] = useState(null);
     const [faviconFile, setFaviconFile] = useState(null);
+    const [footerLogoFile, setFooterLogoFile] = useState(null);
     const [logoUrl, setLogoUrl] = useState('');
     const [faviconUrl, setFaviconUrl] = useState('');
+    const [footerLogoUrl, setFooterLogoUrl] = useState('');
     const [appName, setAppName] = useState('');
     const [description, setDescription] = useState('');
     const [errorMessage, setErrorMessage] = useState(null);
@@ -109,6 +127,7 @@ const LogoSettingsPage = () => {
     const [hasMoreImages, setHasMoreImages] = useState(true);
     const [selectedLibraryImage, setSelectedLibraryImage] = useState(null);
     const [selectedLibraryFavicon, setSelectedLibraryFavicon] = useState(null);
+    const [selectedLibraryFooterLogo, setSelectedLibraryFooterLogo] = useState(null);
     const [currentImageType, setCurrentImageType] = useState(null);
 
     const { loading, error, data } = useQuery(GET_LOGO, {
@@ -141,6 +160,7 @@ const LogoSettingsPage = () => {
             setLogoId(data.logo.data.id);
             setLogoUrl(logoData.logo.data?.attributes.url || '');
             setFaviconUrl(logoData.favicon.data?.attributes.url || '');
+            setFooterLogoUrl(logoData.footerLogo.data?.attributes.url || '');
             setAppName(logoData.appName || '');
             setDescription(logoData.description || '');
             if (logoData.logo.data) {
@@ -148,6 +168,9 @@ const LogoSettingsPage = () => {
             }
             if (logoData.favicon.data) {
                 setSelectedLibraryFavicon(logoData.favicon.data.id);
+            }
+            if (logoData.footerLogo.data) {
+                setSelectedLibraryFooterLogo(logoData.footerLogo.data.id);
             }
         }
     }, [loading, data]);
@@ -161,6 +184,9 @@ const LogoSettingsPage = () => {
         } else if (imageType === 'favicon') {
             setFaviconFile(file);
             previewImage(file, setFaviconUrl);
+        } else if (imageType === 'footerLogo') {
+            setFooterLogoFile(file);
+            previewImage(file, setFooterLogoUrl);
         }
     };
 
@@ -172,6 +198,9 @@ const LogoSettingsPage = () => {
         } else if (imageType === 'favicon') {
             setFaviconFile(file);
             previewImage(file, setFaviconUrl);
+        } else if (imageType === 'footerLogo') {
+            setFooterLogoFile(file);
+            previewImage(file, setFooterLogoUrl);
         }
     };
 
@@ -192,6 +221,10 @@ const LogoSettingsPage = () => {
             setFaviconUrl(imageUrl);
             setSelectedLibraryFavicon(imageId);
             setFaviconFile(null);
+        } else if (currentImageType === 'footerLogo') {
+            setFooterLogoUrl(imageUrl);
+            setSelectedLibraryFooterLogo(imageId);
+            setFooterLogoFile(null);
         }
         setShowImageLibrary(false);
     };
@@ -246,6 +279,7 @@ const LogoSettingsPage = () => {
         try {
             let logoFileId = selectedLibraryImage;
             let faviconFileId = selectedLibraryFavicon;
+            let footerLogoFileId = selectedLibraryFooterLogo;
 
             if (logoFile) {
                 logoFileId = await uploadImage(logoFile);
@@ -255,18 +289,23 @@ const LogoSettingsPage = () => {
                 faviconFileId = await uploadImage(faviconFile);
             }
 
+            if (footerLogoFile) {
+                footerLogoFileId = await uploadImage(footerLogoFile);
+            }
+
             await updateLogo({
                 variables: {
                     data: {
                         logo: logoFileId,
                         favicon: faviconFileId,
+                        footerLogo: footerLogoFileId,
                         appName: appName,
                         description: description,
                     },
                 },
             });
 
-            setSuccessMessage("تم تحديث الشعار واسم التطبيق والأيقونة والوصف بنجاح");
+            setSuccessMessage("تم تحديث الشعار واسم التطبيق والأيقونة وشعار التذييل والوصف بنجاح");
             setTimeout(() => {
                 router.push('/dashboard/settings');
             }, 3000);
@@ -385,6 +424,49 @@ const LogoSettingsPage = () => {
                         )}
                         <button className='addButton mar' type="button" onClick={() => {
                             setCurrentImageType('favicon');
+                            setShowImageLibrary(true);
+                        }}>
+                            اختر من المكتبة
+                        </button>
+                    </div>
+                    <div className="form-group">
+                        <label>شعار التذييل:</label>
+                        <div
+                            className="drop-area"
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => handleImageDrop(e, 'footerLogo')}
+                        >
+                            {footerLogoUrl ? (
+                                <img src={footerLogoUrl} alt="Footer Logo" style={{ maxWidth: '100%', maxHeight: '200px' }} />
+                            ) : (
+                                <label htmlFor="footer-logo-input" style={{ cursor: 'pointer' }}>
+                                    <input
+                                        type="file"
+                                        id="footer-logo-input"
+                                        style={{ display: 'none' }}
+                                        onChange={(e) => handleInputChange(e, 'footerLogo')}
+                                        accept="image/*"
+                                    />
+                                    <FiPlus style={{ fontSize: '50px' }} />
+                                    <p>اسحب الملف واسقطة في هذه المساحة او في المتصفح لرفعة</p>
+                                </label>
+                            )}
+                        </div>
+                        {footerLogoUrl && (
+                            <button
+                                type="button"
+                                className="delete-image-button"
+                                onClick={() => {
+                                    setFooterLogoFile(null);
+                                    setFooterLogoUrl('');
+                                    setSelectedLibraryFooterLogo(null);
+                                }}
+                            >
+                                حذف شعار التذييل
+                            </button>
+                        )}
+                        <button className='addButton mar' type="button" onClick={() => {
+                            setCurrentImageType('footerLogo');
                             setShowImageLibrary(true);
                         }}>
                             اختر من المكتبة
