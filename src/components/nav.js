@@ -1,6 +1,6 @@
 // Nave.js
 'use client'
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from "next/link";
 import { usePathname } from 'next/navigation';
 import { FaChartSimple } from "react-icons/fa6";
@@ -11,7 +11,7 @@ import { MdOutlinePolicy } from "react-icons/md";
 import { BsTags } from "react-icons/bs";
 import { RiFolderImageLine } from "react-icons/ri";
 import { LuMessagesSquare } from "react-icons/lu";
-import { IoIosLogOut, IoIosMenu, IoIosClose } from "react-icons/io";
+import { IoIosLogOut, IoIosMenu } from "react-icons/io";
 import { useAuth } from "@/app/auth";
 import { useQuery } from '@apollo/client';
 import gql from 'graphql-tag';
@@ -35,10 +35,9 @@ export default function Nave() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const { data, loading, error } = useQuery(GET_LOGO);
     const appName = data?.logo?.data?.attributes?.appName || 'صناع المال';
-    const sidebarRef = useRef(null);
 
     const handleSidebarToggle = () => {
-        setIsSidebarOpen(prevState => !prevState);
+        setIsSidebarOpen(!isSidebarOpen);
     };
 
     const handleLogout = () => {
@@ -46,21 +45,24 @@ export default function Nave() {
     };
 
     const handleLinkClick = () => {
-        setIsSidebarOpen(false);
+        if (window.innerWidth <= 768) {
+            setIsSidebarOpen(false);
+        }
     };
 
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (sidebarRef.current && !sidebarRef.current.contains(event.target) && !event.target.classList.contains('sidebar-toggle')) {
+        const handleResize = () => {
+            if (window.innerWidth > 768) {
+                setIsSidebarOpen(true);
+            } else {
                 setIsSidebarOpen(false);
             }
         };
 
-        document.addEventListener('mousedown', handleClickOutside);
+        window.addEventListener('resize', handleResize);
+        handleResize();
 
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     if (loading) return null;
@@ -69,10 +71,10 @@ export default function Nave() {
     return (
         <div className="dashboard">
             <button className="sidebar-toggle" onClick={handleSidebarToggle}>
-                {isSidebarOpen ? <IoIosClose /> : <IoIosMenu />}
+                <IoIosMenu />
             </button>
 
-            <nav ref={sidebarRef} className={`dashboard-nav ${isSidebarOpen ? 'open' : ''}`}>
+            <nav className={`dashboard-nav ${isSidebarOpen ? 'open' : ''}`}>
                 <div className="dash-logo">
                     <h1>{appName}</h1>
                 </div>
@@ -90,21 +92,20 @@ export default function Nave() {
                         { path: '/dashboard/policy', icon: MdOutlinePolicy, text: 'صفحات المواقع' },
                         { path: '/dashboard/settings', icon: IoSettingsOutline, text: 'الاعدادات' },
                     ].map((item, index) => (
-                        <div key={index} className={`dash-link ${pathname === item.path ? 'active' : ''}`}>
+                        <div key={index} className={pathname === item.path ? 'dash-link active' : 'dash-link'}>
                             <Link href={item.path} onClick={handleLinkClick}>
                                 <item.icon className={pathname === item.path ? 'icon act' : 'icon'} />
                                 {item.text}
                             </Link>
                         </div>
                     ))}
-                    <div className="dash-link">
-                        <a href="" onClick={handleLogout}>
-                            <IoIosLogOut className="icon" />
-                            تسجيل خروج
-                        </a>
+                    <div className={'dash-link'} >
+                        <IoIosLogOut className={'icon'} />
+                        <a href="" onClick={handleLogout}>تسجيل خروج</a>
                     </div>
                 </div>
             </nav>
+
         </div>
     );
 }
