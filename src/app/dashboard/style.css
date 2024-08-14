@@ -64,7 +64,19 @@
     transition: right 0.3s ease;
     background-color: #0280cd;
     border-radius: 15px 0 0px 15px;
-    overflow: auto;
+    overflow-y: auto;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.dashboard-nav::-webkit-scrollbar {
+    display: none;
+}
+
+.dashboard-nav {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 
 .dashboard-nav.open {
@@ -81,16 +93,26 @@
     border-radius: 50%;
     box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
     cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.sidebar-toggle svg {
+    font-size: 24px;
 }
 
 @media (min-width: 768px) {
     .dashboard-nav {
+        right: -250px;
+    }
+
+    .dashboard-nav.open {
         right: 0;
-        position: static;
     }
 
     .sidebar-toggle {
-        display: none;
+        display: block;
     }
 }
 
@@ -102,17 +124,21 @@
     height: 30vh;
     background-color: #0280cd;
     border-radius: 15px;
+    flex-shrink: 0;
+}
 
+.dash-links {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-bottom: 20px;
 }
 
 .dash-logo img {
-
     width: 130px;
     height: 51px;
 }
 
 .dash-logo h1 {
-
     color: white;
 }
 
@@ -120,13 +146,11 @@
     color: #F0F0F7;
     margin: 0 15px;
     font-size: 17px;
-
 }
 
 .act {
     color: #409FD7;
     font-size: 17px;
-
 }
 
 .dash-link {
@@ -135,14 +159,12 @@
     font-weight: 700;
     color: #BCBCCB;
     text-decoration: none;
-
 }
 
 .active {
     border-right: 5px solid #409FD7;
     background-color: #eee;
     color: #409FD7;
-
 }
 
 .active a {
@@ -153,8 +175,6 @@
     text-decoration: none;
     color: white;
 }
-
-
 
 /* ########### post section ################# */
 

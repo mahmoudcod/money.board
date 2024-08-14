@@ -11,7 +11,7 @@ import { MdOutlinePolicy } from "react-icons/md";
 import { BsTags } from "react-icons/bs";
 import { RiFolderImageLine } from "react-icons/ri";
 import { LuMessagesSquare } from "react-icons/lu";
-import { IoIosLogOut, IoIosMenu } from "react-icons/io";
+import { IoIosLogOut, IoIosMenu, IoIosClose } from "react-icons/io";
 import { useAuth } from "@/app/auth";
 import { useQuery } from '@apollo/client';
 import gql from 'graphql-tag';
@@ -38,7 +38,7 @@ export default function Nave() {
     const sidebarRef = useRef(null);
 
     const handleSidebarToggle = () => {
-        setIsSidebarOpen(!isSidebarOpen);
+        setIsSidebarOpen(prevState => !prevState);
     };
 
     const handleLogout = () => {
@@ -46,32 +46,19 @@ export default function Nave() {
     };
 
     const handleLinkClick = () => {
-        if (window.innerWidth <= 768) {
-            setIsSidebarOpen(false);
-        }
+        setIsSidebarOpen(false);
     };
 
     useEffect(() => {
-        const handleResize = () => {
-            if (window.innerWidth > 768) {
-                setIsSidebarOpen(true);
-            } else {
-                setIsSidebarOpen(false);
-            }
-        };
-
         const handleClickOutside = (event) => {
-            if (sidebarRef.current && !sidebarRef.current.contains(event.target) && window.innerWidth <= 768) {
+            if (sidebarRef.current && !sidebarRef.current.contains(event.target) && !event.target.classList.contains('sidebar-toggle')) {
                 setIsSidebarOpen(false);
             }
         };
 
-        window.addEventListener('resize', handleResize);
         document.addEventListener('mousedown', handleClickOutside);
-        handleResize();
 
         return () => {
-            window.removeEventListener('resize', handleResize);
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
@@ -82,7 +69,7 @@ export default function Nave() {
     return (
         <div className="dashboard">
             <button className="sidebar-toggle" onClick={handleSidebarToggle}>
-                <IoIosMenu />
+                {isSidebarOpen ? <IoIosClose /> : <IoIosMenu />}
             </button>
 
             <nav ref={sidebarRef} className={`dashboard-nav ${isSidebarOpen ? 'open' : ''}`}>
@@ -103,16 +90,18 @@ export default function Nave() {
                         { path: '/dashboard/policy', icon: MdOutlinePolicy, text: 'صفحات المواقع' },
                         { path: '/dashboard/settings', icon: IoSettingsOutline, text: 'الاعدادات' },
                     ].map((item, index) => (
-                        <div key={index} className={pathname === item.path ? 'dash-link active' : 'dash-link'}>
+                        <div key={index} className={`dash-link ${pathname === item.path ? 'active' : ''}`}>
                             <Link href={item.path} onClick={handleLinkClick}>
                                 <item.icon className={pathname === item.path ? 'icon act' : 'icon'} />
                                 {item.text}
                             </Link>
                         </div>
                     ))}
-                    <div className={'dash-link'} >
-                        <IoIosLogOut className={'icon'} />
-                        <a href="" onClick={handleLogout}>تسجيل خروج</a>
+                    <div className="dash-link">
+                        <a href="" onClick={handleLogout}>
+                            <IoIosLogOut className="icon" />
+                            تسجيل خروج
+                        </a>
                     </div>
                 </div>
             </nav>
