@@ -27,6 +27,7 @@ const GET_POST = gql`
             }
           }
           blog
+          sources
           cover {
             data {
               id
@@ -94,6 +95,7 @@ const UPDATE_POST = gql`
     $title: String!
     $categories: [ID]!
     $blog: String!
+    $sources: String!
     $cover: ID
     $slug: String!
     $tags: [ID]
@@ -104,6 +106,7 @@ const UPDATE_POST = gql`
       title: $title
       categories: $categories
       blog: $blog
+      sources: $sources
       cover: $cover
       slug: $slug
       tags: $tags
@@ -117,6 +120,8 @@ const UPDATE_POST = gql`
           slug
           description
           publishedAt
+          blog
+          sources
         }
       }
     }
@@ -169,6 +174,7 @@ const EditPostPage = ({ params }) => {
     const [featureImage, setFeatureImage] = useState(null);
     const [imageUrl, setImageUrl] = useState('');
     const [slug, setSlug] = useState('');
+    const [sources, setSources] = useState('');
     const [excerpt, setExcerpt] = useState('');
     const [published, setPublished] = useState(false);
     const [selectedTags, setSelectedTags] = useState([]);
@@ -259,6 +265,7 @@ const EditPostPage = ({ params }) => {
             setTitle(post.title || '');
             setBody(post.blog || '');
             setSlug(post.slug || '');
+            setSources(post.sources || '');
             setExcerpt(post.description || '');
             setPublished(!!post.publishedAt);
             setSelectedTags(post.tags?.data || []);
@@ -334,7 +341,7 @@ const EditPostPage = ({ params }) => {
             }
         } catch (error) {
             console.error('Error fetching publisher action:', error);
-            setErrorMessage('Failed to fetch scheduling information.');
+            // setErrorMessage('Failed to fetch scheduling information.');
         }
     };
 
@@ -534,6 +541,7 @@ const EditPostPage = ({ params }) => {
                 blog: body,
                 cover: coverData,
                 slug,
+                sources: sources,
                 tags: selectedTags.map((tag) => tag.id),
                 description: excerpt,
                 publishedAt: publishedAt,
@@ -568,6 +576,7 @@ const EditPostPage = ({ params }) => {
                 setTitle(updatedPost.title);
                 setBody(updatedPost.blog);
                 setSlug(updatedPost.slug);
+                setSources(updatedPost.sources);
                 setExcerpt(updatedPost.description);
                 setPublished(!!updatedPost.publishedAt);
                 setSelectedTags(updatedPost.tags.data || []);
@@ -881,6 +890,16 @@ const EditPostPage = ({ params }) => {
                             style={{ height: '300px' }}
                             renderHTML={(text) => mdParser.render(text)}
                             onChange={handleEditorChange}
+                            config={editorConfig}
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label>المصادر:</label>
+                        <MdEditor
+                            value={sources}
+                            style={{ height: '200px' }}
+                            renderHTML={(text) => mdParser.render(text)}
+                            onChange={({ text }) => setSources(text)}
                             config={editorConfig}
                         />
                     </div>
